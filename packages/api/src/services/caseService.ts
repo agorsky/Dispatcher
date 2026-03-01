@@ -295,6 +295,39 @@ export async function markCorrected(caseId: string): Promise<Case> {
   });
 }
 
+// =============================================================================
+// Agent-to-law mapping
+// Maps agent names to the appliesTo values that cover their activity surfaces
+// =============================================================================
+
+const AGENT_LAW_MAP: Record<string, string[]> = {
+  tommy: ["tommy"],
+  silvio: ["silvio"],
+  sal: ["sal"],
+  paulie: ["paulie"],
+  henry: ["henry"],
+  "the-claw-father": ["the-claw-father"],
+  bobby: ["feature-worker", "bobby"],
+  barney: ["barney"],
+  planner: ["planner"],
+  orchestrator: ["orchestrator"],
+  "plan-reviewer": ["plan-reviewer"],
+  "request-formulator": ["request-formulator"],
+  "feature-worker": ["feature-worker"],
+};
+
+export async function getApplicableLaws(agentName: string) {
+  const appliesValues = AGENT_LAW_MAP[agentName.toLowerCase()] ?? [agentName.toLowerCase()];
+
+  return prisma.law.findMany({
+    where: {
+      isActive: true,
+      appliesTo: { in: appliesValues },
+    },
+    orderBy: { lawCode: "asc" },
+  });
+}
+
 export async function dismissCase(
   caseId: string,
   reason: string

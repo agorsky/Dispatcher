@@ -82,6 +82,7 @@ export type LogSessionWorkInput = z.infer<typeof logSessionWorkSchema>;
 export const sessionResponseSchema = z.object({
   id: z.string().uuid(),
   epicId: z.string().uuid(),
+  epicName: z.string().nullable(),
   externalId: z.string().nullable(),
   startedAt: z.string().datetime(),
   endedAt: z.string().datetime().nullable(),

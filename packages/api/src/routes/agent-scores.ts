@@ -3,6 +3,10 @@ import {
   getScore,
   getLeaderboard,
   adjustScore,
+  getScoreEvents,
+  getScoreDelta7Day,
+  checkZeroViolationBonus,
+  setLastAudit,
 } from "../services/agentScoreService.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { validateBody } from "../middleware/validate.js";
@@ -49,6 +53,64 @@ export default function agentScoresRoutes(
     { preHandler: [authenticate] },
     async (request, reply) => {
       const agent = await getScore(request.params.agentName);
+      return reply.send({ data: agent });
+    }
+  );
+
+  /**
+   * GET /api/v1/agent-scores/:agentName/events
+   * Score event history (merit/deduction ledger) for an agent
+   */
+  fastify.get<{
+    Params: AgentNameParams;
+    Querystring: { limit?: number; cursor?: string };
+  }>(
+    "/:agentName/events",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const opts: { limit?: number; cursor?: string } = {};
+      if (request.query.limit) opts.limit = Number(request.query.limit);
+      if (request.query.cursor) opts.cursor = request.query.cursor;
+      const result = await getScoreEvents(request.params.agentName, opts);
+      return reply.send(result);
+    }
+  );
+
+  /**
+   * GET /api/v1/agent-scores/:agentName/delta
+   * 7-day score delta for an agent
+   */
+  fastify.get<{ Params: AgentNameParams }>(
+    "/:agentName/delta",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const delta = await getScoreDelta7Day(request.params.agentName);
+      return reply.send({ data: { agentName: request.params.agentName, delta7Day: delta } });
+    }
+  );
+
+  /**
+   * POST /api/v1/agent-scores/:agentName/check-zero-violation-bonus
+   * Barney calls this after a clean audit pass to award 7-day zero-violation bonus
+   */
+  fastify.post<{ Params: AgentNameParams }>(
+    "/:agentName/check-zero-violation-bonus",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const awarded = await checkZeroViolationBonus(request.params.agentName);
+      return reply.send({ data: { agentName: request.params.agentName, bonusAwarded: awarded } });
+    }
+  );
+
+  /**
+   * POST /api/v1/agent-scores/:agentName/set-last-audit
+   * Barney calls this after completing an audit pass on an agent
+   */
+  fastify.post<{ Params: AgentNameParams }>(
+    "/:agentName/set-last-audit",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const agent = await setLastAudit(request.params.agentName);
       return reply.send({ data: agent });
     }
   );

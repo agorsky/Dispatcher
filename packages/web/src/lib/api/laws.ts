@@ -20,4 +20,6 @@ export interface LawsResponse {
 
 export const lawsApi = {
   list: () => api.get<LawsResponse>("/laws"),
+  listByAgent: (appliesTo: string) =>
+    api.get<LawsResponse>(`/laws?appliesTo=${encodeURIComponent(appliesTo)}&isActive=true`),
 };

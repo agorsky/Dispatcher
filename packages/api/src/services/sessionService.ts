@@ -104,6 +104,7 @@ function buildFeaturePhases(
 function transformSession(session: {
   id: string;
   epicId: string;
+  epic?: { name: string } | null;
   externalId: string | null;
   startedAt: Date;
   endedAt: Date | null;
@@ -120,6 +121,7 @@ function transformSession(session: {
   return {
     id: session.id,
     epicId: session.epicId,
+    epicName: session.epic?.name ?? null,
     externalId: session.externalId,
     startedAt: session.startedAt.toISOString(),
     endedAt: session.endedAt?.toISOString() ?? null,
@@ -439,6 +441,7 @@ export async function getSessionHistory(
 export async function getSession(sessionId: string): Promise<SessionResponse> {
   const session = await prisma.aiSession.findUnique({
     where: { id: sessionId },
+    include: { epic: true },
   });
 
   if (!session) {
@@ -717,6 +720,7 @@ export async function findEpicIdForItem(
 export async function abandonSession(sessionId: string): Promise<SessionResponse> {
   const session = await prisma.aiSession.findUnique({
     where: { id: sessionId },
+    include: { epic: true },
   });
 
   if (!session) {
