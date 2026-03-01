@@ -16,6 +16,7 @@ import {
 import { emitStatusChanged, emitEntityCreated, emitEntityUpdated, emitEntityDeleted, type StatusChangedPayload } from "../events/index.js";
 import { getAccessibleScopes, hasAccessibleScopes } from "../utils/scopeContext.js";
 import * as changelogService from "./changelogService.js";
+import { emitSessionEventToEpic } from "./epicService.js";
 
 // Types for feature operations
 export interface CreateFeatureInput {
@@ -725,6 +726,20 @@ export async function updateFeature(
     ).catch((error) => {
       console.error("Failed to record feature update in changelog:", error);
     });
+  }
+
+  // ENG-113-3: Auto-emit session event on feature status change
+  if (input.statusId !== undefined && input.statusId !== oldStatusId) {
+    emitSessionEventToEpic(updatedFeature.epicId, {
+      type: "feature_status_change",
+      payload: {
+        featureId: id,
+        identifier: updatedFeature.identifier,
+        title: updatedFeature.title,
+        newStatusId: input.statusId,
+        previousStatusId: oldStatusId ?? null,
+      },
+    }).catch(() => {});
   }
 
   return updatedFeature;

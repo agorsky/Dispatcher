@@ -6,6 +6,7 @@ import { getAccessibleScopes, hasAccessibleScopes } from "../utils/scopeContext.
 import { createPersonalScope } from "./personalScopeService.js";
 import * as changelogService from "./changelogService.js";
 import { emitEntityCreated, emitEntityUpdated, emitEntityDeleted } from "../events/index.js";
+import { spawn } from "child_process";
 
 // Types for epic operations
 export interface CreateEpicInput {
@@ -1156,6 +1157,159 @@ async function buildStatusMapping(
   }
 
   return statusMap;
+}
+
+// =============================================================================
+// Auto-Instrumentation Helpers (ENG-113, ENG-114, ENG-118)
+// =============================================================================
+
+const OPENCLAW_BIN = "/opt/homebrew/bin/openclaw";
+
+/**
+ * Record a session event in the DB for the active session of an epic.
+ * No-op if no active session exists. Never throws.
+ */
+export async function emitSessionEventToEpic(
+  epicId: string,
+  event: { type: string; payload: object }
+): Promise<void> {
+  try {
+    const activeSession = await prisma.aiSession.findFirst({
+      where: { epicId, status: "active" },
+      select: { id: true },
+    });
+
+    if (!activeSession) return;
+
+    await prisma.sessionEvent.create({
+      data: {
+        epicId,
+        sessionId: activeSession.id,
+        eventType: event.type,
+        payload: JSON.stringify(event.payload),
+      },
+    });
+  } catch {
+    // Never block the parent operation
+  }
+}
+
+/**
+ * Trigger Barney post-session audit. Non-blocking fire-and-forget.
+ * Guards against double-audit via auditedAt field on session.
+ */
+export async function triggerBarneyAudit(
+  epicId: string,
+  sessionId: string
+): Promise<void> {
+  try {
+    // Guard: skip if session was already audited
+    const session = await prisma.aiSession.findUnique({
+      where: { id: sessionId },
+      select: { auditedAt: true },
+    });
+
+    if (session?.auditedAt) return;
+
+    // Mark as audited immediately to prevent race conditions
+    await prisma.aiSession.update({
+      where: { id: sessionId },
+      data: { auditedAt: new Date() },
+    });
+
+    const prompt = [
+      `Post-session compliance audit. Session ${sessionId} for epic ${epicId}.`,
+      "Check all tasks completed in this session against bobby-applicable laws.",
+      "Verify: relatedFiles linked, commits referenced, tasks marked Done.",
+      "File cases for any violations found. Use the Dispatcher API.",
+    ].join(" ");
+
+    const child = spawn(OPENCLAW_BIN, ["system", "event", "--text", prompt, "--mode", "now"], {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  } catch {
+    // Non-blocking — never propagate errors
+  }
+}
+
+/**
+ * Check if all compliance cases for an epic (last 2 hours) are resolved.
+ * Returns true when safe to send completion notification.
+ */
+export async function checkSessionComplianceClear(epicId: string): Promise<boolean> {
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    // Find the epic to get its identifier for the notification
+    const epic = await prisma.epic.findUnique({
+      where: { id: epicId },
+      select: { identifier: true, name: true },
+    });
+
+    if (!epic) return false;
+
+    // Query recent cases filed against bobby (the implementation agent)
+    const recentCases = await prisma.case.findMany({
+      where: {
+        accusedAgent: "bobby",
+        filedAt: { gte: twoHoursAgo },
+      },
+      select: { id: true, status: true, verdict: true },
+    });
+
+    if (recentCases.length === 0) return true;
+
+    const allResolved = recentCases.every(
+      (c) =>
+        c.status === "corrected" ||
+        c.status === "dismissed" ||
+        (c.status === "verdict" && c.verdict === "not_guilty")
+    );
+
+    return allResolved;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fire compliance-clear notification via openclaw system event.
+ * Called only when all cases are resolved.
+ */
+export async function fireComplianceClearNotification(epicId: string): Promise<void> {
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    const epic = await prisma.epic.findUnique({
+      where: { id: epicId },
+      select: { identifier: true, name: true },
+    });
+
+    if (!epic) return;
+
+    const caseCount = await prisma.case.count({
+      where: {
+        accusedAgent: "bobby",
+        filedAt: { gte: twoHoursAgo },
+      },
+    });
+
+    const message = [
+      `✅ Session complete and compliance clear.`,
+      `Epic ${epic.identifier ?? epicId}: ${epic.name}.`,
+      `Cases filed: ${caseCount}. All resolved. Ready for review.`,
+    ].join(" ");
+
+    const child = spawn(OPENCLAW_BIN, ["system", "event", "--text", message, "--mode", "now"], {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  } catch {
+    // Non-blocking
+  }
 }
 
 /**

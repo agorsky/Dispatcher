@@ -9,6 +9,7 @@ import {
   logSessionWork,
   abandonSession,
 } from "../services/sessionService.js";
+import { triggerBarneyAudit } from "../services/epicService.js";
 import {
   getSessionEvents,
   computeProgressState,
@@ -161,6 +162,10 @@ export default async function sessionRoutes(
     },
     async (request, reply) => {
       const result = await endSession(request.params.epicId, request.body);
+
+      // ENG-114-2: Trigger Barney audit immediately on session end (non-blocking)
+      triggerBarneyAudit(request.params.epicId, result.id).catch(() => {});
+
       return reply.send({ data: result });
     }
   );

@@ -16,6 +16,7 @@ import {
 import { emitStatusChanged, emitEntityCreated, emitEntityUpdated, emitEntityDeleted, type StatusChangedPayload } from "../events/index.js";
 import { getAccessibleScopes, hasAccessibleScopes } from "../utils/scopeContext.js";
 import * as changelogService from "./changelogService.js";
+import { emitSessionEventToEpic, triggerBarneyAudit } from "./epicService.js";
 
 // Types for task operations
 export interface CreateTaskInput {
@@ -706,25 +707,64 @@ export async function updateTask(
     emitStatusChanged(payload);
   }
 
-  // Record changes in changelog using diffAndRecord (never fails the parent operation)
+  // Record changes in changelog + auto-instrumentation session events
   // epicId needs to be resolved via feature
   if (beforeSnapshot) {
     const taskWithFeature = await prisma.task.findUnique({
       where: { id },
-      select: { feature: { select: { epicId: true } } },
+      select: {
+        feature: { select: { epicId: true } },
+        remediationCase: { select: { id: true } },
+      },
     });
 
     if (taskWithFeature?.feature.epicId) {
+      const epicId = taskWithFeature.feature.epicId;
+
       changelogService.diffAndRecord(
         "task",
         id,
         beforeSnapshot,
         updatedTask,
         userId ?? "system",
-        taskWithFeature.feature.epicId
+        epicId
       ).catch((error) => {
         console.error("Failed to record task update in changelog:", error);
       });
+
+      // ENG-113-2 & 113-4: Auto-emit session event on status change
+      if (input.statusId !== undefined && input.statusId !== oldStatusId) {
+        const isRemediation = Boolean(taskWithFeature.remediationCase);
+        const eventType = isRemediation ? "remediation_complete" : "task_status_change";
+
+        emitSessionEventToEpic(epicId, {
+          type: eventType,
+          payload: {
+            taskId: id,
+            identifier: updatedTask.identifier,
+            title: updatedTask.title,
+            newStatusId: input.statusId,
+            previousStatusId: oldStatusId ?? null,
+          },
+        }).catch(() => {});
+
+        // ENG-117-5: When a remediation task completes, re-trigger Barney audit
+        if (isRemediation) {
+          const doneStatus = await prisma.status.findUnique({
+            where: { id: input.statusId },
+            select: { category: true },
+          });
+          if (doneStatus?.category === "completed") {
+            const activeSession = await prisma.aiSession.findFirst({
+              where: { epicId, status: "active" },
+              select: { id: true },
+            });
+            if (activeSession) {
+              triggerBarneyAudit(epicId, activeSession.id).catch(() => {});
+            }
+          }
+        }
+      }
     }
   }
 
