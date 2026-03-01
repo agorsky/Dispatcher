@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/queries/use-current-user';
 import {
@@ -31,7 +31,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { MarkdownRenderer } from '@/components/common/markdown-renderer';
-import { ArrowLeft, ThumbsUp, Flame, ThumbsDown, Edit, Trash2, Send, Check, CheckCircle, X, Copy, Terminal, ArrowRightLeft, User, Users } from 'lucide-react';
+import { ArrowLeft, ThumbsUp, Flame, ThumbsDown, Edit, Trash2, Send, Check, CheckCircle, X, ArrowRightLeft, User, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { EpicRequestStatus, ReactionType, EpicRequestComment } from '@/lib/api/epic-requests';
@@ -78,39 +78,6 @@ export function EpicRequestDetailPage() {
   const [newCommentContent, setNewCommentContent] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyCommand = useCallback(async (command: string) => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = command;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-
-      try {
-        textArea.select();
-        // eslint-disable-next-line deprecation/deprecation
-        const successful = document.execCommand('copy');
-        if (successful) {
-          setCopied(true);
-          setTimeout(() => {
-            setCopied(false);
-          }, 2000);
-        }
-      } catch {
-        // Swallow copy fallback errors to avoid unhandled promise rejections
-      } finally {
-        document.body.removeChild(textArea);
-      }
-    }
-  }, []);
 
   if (isLoading) {
     return (
@@ -282,7 +249,6 @@ export function EpicRequestDetailPage() {
     }
   };
 
-  const plannerCommand = `\\planner --from-request "${request.title}"`;
 
   // Determine scope
   const isPersonalScope = !!request.personalScopeId;
@@ -455,33 +421,6 @@ export function EpicRequestDetailPage() {
               addSuffix: true,
             })}
           </div>
-
-          {/* Planner Command - only shown for approved requests */}
-          {request.status === 'approved' && (
-          <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Terminal className="h-4 w-4" />
-              <span>Create Epic from this Request</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-background px-3 py-2 text-sm font-mono border select-all">
-                {plannerCommand}
-              </code>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => { void handleCopyCommand(plannerCommand); }}
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-          )}
 
           {/* Description */}
           {request.description && (
