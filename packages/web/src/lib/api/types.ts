@@ -65,6 +65,8 @@ export interface Epic {
   } | null;
   implementedDate?: string | null;
   isArchived?: boolean;
+  status?: 'active' | 'completed' | 'archived';
+  completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

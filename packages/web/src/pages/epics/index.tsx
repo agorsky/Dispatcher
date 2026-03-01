@@ -12,9 +12,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Epic } from "@/lib/api/types";
+import type { EpicFilters } from "@/lib/api/epics";
 
 /**
  * Groups epics by team ID (stable identifier) and sorts groups alphabetically by team name.
@@ -43,6 +45,7 @@ function groupEpicsByTeam(epics: Epic[]): Map<string, { team: Epic['team']; epic
 export function EpicsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
   
   // Initialize scope from localStorage with 'my' as default for first-time users
   const [scope, setScope] = useState<ScopeMode>(() => {
@@ -69,10 +72,10 @@ export function EpicsPage() {
   
   // Build filter parameters based on scope
   const epicFilters = useMemo(() => {
-    const filters: { includeArchived: boolean; teamId?: string; createdBy?: string } = {
+    const filters: EpicFilters = {
       includeArchived: showArchived,
     };
-    
+
     if (scope === 'my' && currentUser?.id) {
       filters.createdBy = currentUser.id;
     } else if (scope === 'team' && scopeId) {
@@ -80,9 +83,13 @@ export function EpicsPage() {
     } else if (scope === 'user' && scopeId) {
       filters.createdBy = scopeId;
     }
-    
+
+    if (statusFilter !== 'all') {
+      filters.status = statusFilter;
+    }
+
     return filters;
-  }, [scope, scopeId, showArchived, currentUser?.id]);
+  }, [scope, scopeId, showArchived, currentUser?.id, statusFilter]);
   
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useEpics(epicFilters);
@@ -106,15 +113,26 @@ export function EpicsPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">{showArchived ? "All epics" : "Active"}</span>
+                <span className="hidden sm:inline">
+                  {statusFilter === 'completed' ? 'Completed' : statusFilter === 'active' ? 'Active' : showArchived ? 'All' : 'Active'}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowArchived(false)}>
-                <Check className={`h-4 w-4 mr-2 ${!showArchived ? "opacity-100" : "opacity-0"}`} />
-                Active only
+              <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
+                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'all' && !showArchived ? "opacity-100" : "opacity-0"}`} />
+                Active epics
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowArchived(true)}>
+              <DropdownMenuItem onClick={() => { setStatusFilter('completed'); setShowArchived(false); }}>
+                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'completed' ? "opacity-100" : "opacity-0"}`} />
+                Completed epics
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
+                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'all' && !showArchived ? "opacity-100" : "opacity-0"}`} />
+                All statuses
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowArchived(!showArchived)}>
                 <Check className={`h-4 w-4 mr-2 ${showArchived ? "opacity-100" : "opacity-0"}`} />
                 Include archived
               </DropdownMenuItem>

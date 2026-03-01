@@ -127,11 +127,15 @@ model Epic {
   teamId          String?  @map("team_id")
   personalScopeId String?  @map("personal_scope_id")
   
+  // Lifecycle status
+  status          String    @default("active") @map("status") // 'active' | 'completed' | 'archived'
+  completedAt     DateTime? @map("completed_at")
+
   // User tracking fields
   createdBy       String?   @map("created_by")
   implementedBy   String?   @map("implemented_by")
   implementedDate DateTime? @map("implemented_date")
-  
+
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

@@ -38,6 +38,8 @@ export interface ListEpicsOptions {
   currentUserId?: string | undefined;
   /** Filter by epic creator user ID */
   createdBy?: string | undefined;
+  /** Filter by epic lifecycle status ('active' | 'completed') */
+  status?: string | undefined;
 }
 
 export interface EpicWithCount extends Epic {
@@ -74,9 +76,10 @@ export async function listEpics(
     isArchived?: boolean;
     teamId?: string;
     createdBy?: string;
+    status?: string;
     OR?: Array<{ teamId?: { in: string[] }; personalScopeId?: string | { in: string[] } }>;
   } = {};
-  
+
   if (!options.includeArchived) {
     whereClause.isArchived = false;
   }
@@ -84,6 +87,11 @@ export async function listEpics(
   // Apply createdBy filter if provided
   if (options.createdBy !== undefined) {
     whereClause.createdBy = options.createdBy;
+  }
+
+  // Apply lifecycle status filter if provided
+  if (options.status !== undefined) {
+    whereClause.status = options.status;
   }
 
   // Apply scope-based filtering when currentUserId is provided
@@ -1210,4 +1218,128 @@ async function remapChildStatuses(
       }
     }
   }
+}
+
+// =============================================================================
+// Epic Lifecycle — Auto-completion, Manual complete/reopen
+// =============================================================================
+
+/**
+ * Check whether all features in the epic are in a "completed" status category
+ * and update the epic's lifecycle status accordingly.
+ *
+ * - If all features are completed → set epic status='completed', completedAt=now
+ * - If any feature is not completed but epic was completed → revert to 'active'
+ *
+ * Safe to call after any feature status change.
+ */
+export async function checkEpicCompletion(epicId: string): Promise<void> {
+  const epic = await prisma.epic.findUnique({
+    where: { id: epicId },
+    include: {
+      features: {
+        include: {
+          status: { select: { category: true } },
+        },
+      },
+    },
+  });
+
+  if (!epic || epic.features.length === 0) return;
+
+  const allCompleted = epic.features.every(
+    (f) => f.status?.category === "completed"
+  );
+
+  if (allCompleted && epic.status !== "completed") {
+    await prisma.epic.update({
+      where: { id: epicId },
+      data: { status: "completed", completedAt: new Date() },
+    });
+    changelogService.recordChange({
+      entityType: "epic",
+      entityId: epicId,
+      field: "status",
+      oldValue: epic.status,
+      newValue: "completed",
+      changedBy: "system",
+      epicId,
+    }).catch((e) => console.error("Failed to record epic auto-completion:", e));
+  } else if (!allCompleted && epic.status === "completed") {
+    await prisma.epic.update({
+      where: { id: epicId },
+      data: { status: "active", completedAt: null },
+    });
+    changelogService.recordChange({
+      entityType: "epic",
+      entityId: epicId,
+      field: "status",
+      oldValue: "completed",
+      newValue: "active",
+      changedBy: "system",
+      epicId,
+    }).catch((e) => console.error("Failed to record epic revert:", e));
+  }
+}
+
+/**
+ * Manually mark an epic as completed.
+ * Throws 400 if already completed.
+ */
+export async function completeEpic(epicId: string, userId?: string): Promise<Epic> {
+  const existing = await prisma.epic.findUnique({ where: { id: epicId } });
+  if (!existing) {
+    throw new NotFoundError(`Epic with id '${epicId}' not found`);
+  }
+  if (existing.status === "completed") {
+    throw new ValidationError("Epic is already completed");
+  }
+
+  const updated = await prisma.epic.update({
+    where: { id: epicId },
+    data: { status: "completed", completedAt: new Date() },
+  });
+
+  changelogService.recordChange({
+    entityType: "epic",
+    entityId: epicId,
+    field: "status",
+    oldValue: existing.status,
+    newValue: "completed",
+    changedBy: userId ?? "system",
+    epicId,
+  }).catch((e) => console.error("Failed to record epic completion:", e));
+
+  return updated;
+}
+
+/**
+ * Manually reopen a completed epic (set status back to 'active').
+ * Throws 400 if already active.
+ */
+export async function reopenEpic(epicId: string, userId?: string): Promise<Epic> {
+  const existing = await prisma.epic.findUnique({ where: { id: epicId } });
+  if (!existing) {
+    throw new NotFoundError(`Epic with id '${epicId}' not found`);
+  }
+  if (existing.status !== "completed") {
+    throw new ValidationError("Epic is not completed");
+  }
+
+  const updated = await prisma.epic.update({
+    where: { id: epicId },
+    data: { status: "active", completedAt: null },
+  });
+
+  changelogService.recordChange({
+    entityType: "epic",
+    entityId: epicId,
+    field: "status",
+    oldValue: "completed",
+    newValue: "active",
+    changedBy: userId ?? "system",
+    epicId,
+  }).catch((e) => console.error("Failed to record epic reopen:", e));
+
+  return updated;
 }

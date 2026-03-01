@@ -7,6 +7,7 @@ export interface EpicFilters {
   cursor?: string | undefined;
   limit?: number | undefined;
   includeArchived?: boolean | undefined;
+  status?: 'active' | 'completed' | undefined;
 }
 
 export interface CreateEpicInput {
@@ -60,4 +61,8 @@ export const epicsApi = {
    */
   transfer: (id: string, input: { direction: 'personal-to-team' | 'team-to-personal'; teamId?: string }) =>
     api.post<{ data: Epic }>(`/epics/${id}/transfer`, input),
+
+  complete: (id: string) => api.patch<{ data: Epic }>(`/epics/${id}/complete`, {}),
+
+  reopen: (id: string) => api.patch<{ data: Epic }>(`/epics/${id}/reopen`, {}),
 };

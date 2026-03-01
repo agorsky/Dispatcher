@@ -115,6 +115,30 @@ export function useTransferEpicScope() {
   });
 }
 
+export function useCompleteEpic() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => epicsApi.complete(id),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: epicKeys.lists() });
+      queryClient.setQueryData(epicKeys.detail(response.data.id), response);
+    },
+  });
+}
+
+export function useReopenEpic() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => epicsApi.reopen(id),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: epicKeys.lists() });
+      queryClient.setQueryData(epicKeys.detail(response.data.id), response);
+    },
+  });
+}
+
 export function useEpicsCount() {
   return useQuery({
     queryKey: [...epicKeys.lists(), 'count'] as const,

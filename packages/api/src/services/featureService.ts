@@ -16,6 +16,7 @@ import {
 import { emitStatusChanged, emitEntityCreated, emitEntityUpdated, emitEntityDeleted, type StatusChangedPayload } from "../events/index.js";
 import { getAccessibleScopes, hasAccessibleScopes } from "../utils/scopeContext.js";
 import * as changelogService from "./changelogService.js";
+import { checkEpicCompletion } from "./epicService.js";
 
 // Types for feature operations
 export interface CreateFeatureInput {
@@ -724,6 +725,13 @@ export async function updateFeature(
       updatedFeature.epicId
     ).catch((error) => {
       console.error("Failed to record feature update in changelog:", error);
+    });
+  }
+
+  // If status changed, check whether the parent epic should auto-complete/revert
+  if (input.statusId !== undefined && input.statusId !== oldStatusId) {
+    checkEpicCompletion(updatedFeature.epicId).catch((error) => {
+      console.error("Failed to check epic completion after feature update:", error);
     });
   }
 
