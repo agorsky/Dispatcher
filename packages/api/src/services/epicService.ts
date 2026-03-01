@@ -121,7 +121,7 @@ export async function listEpics(
   }
 
   // Determine order by field
-  const orderByField = options.orderBy ?? 'sortOrder';
+  const orderByField = options.orderBy ?? 'createdAt';
   const orderBy = orderByField === 'sortOrder'
     ? [{ sortOrder: "asc" as const }, { createdAt: "desc" as const }]
     : [{ [orderByField]: "desc" as const }];
