@@ -16,7 +16,7 @@ import {
 import { emitStatusChanged, emitEntityCreated, emitEntityUpdated, emitEntityDeleted, type StatusChangedPayload } from "../events/index.js";
 import { getAccessibleScopes, hasAccessibleScopes } from "../utils/scopeContext.js";
 import * as changelogService from "./changelogService.js";
-import { emitSessionEventToEpic } from "./epicService.js";
+import { emitSessionEventToEpic, checkEpicCompletion } from "./epicService.js";
 
 // Types for feature operations
 export interface CreateFeatureInput {
@@ -728,7 +728,7 @@ export async function updateFeature(
     });
   }
 
-  // ENG-113-3: Auto-emit session event on feature status change
+  // ENG-113-3: Auto-emit session event on feature status change + check epic completion
   if (input.statusId !== undefined && input.statusId !== oldStatusId) {
     emitSessionEventToEpic(updatedFeature.epicId, {
       type: "feature_status_change",
@@ -740,6 +740,9 @@ export async function updateFeature(
         previousStatusId: oldStatusId ?? null,
       },
     }).catch(() => {});
+    checkEpicCompletion(updatedFeature.epicId).catch((error) => {
+      console.error("Failed to check epic completion after feature update:", error);
+    });
   }
 
   return updatedFeature;
