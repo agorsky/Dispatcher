@@ -16,7 +16,7 @@ import {
 import { emitStatusChanged, emitEntityCreated, emitEntityUpdated, emitEntityDeleted, type StatusChangedPayload } from "../events/index.js";
 import { getAccessibleScopes, hasAccessibleScopes } from "../utils/scopeContext.js";
 import * as changelogService from "./changelogService.js";
-import { checkEpicCompletion } from "./epicService.js";
+import { emitSessionEventToEpic, checkEpicCompletion } from "./epicService.js";
 
 // Types for feature operations
 export interface CreateFeatureInput {
@@ -728,8 +728,18 @@ export async function updateFeature(
     });
   }
 
-  // If status changed, check whether the parent epic should auto-complete/revert
+  // ENG-113-3: Auto-emit session event on feature status change + check epic completion
   if (input.statusId !== undefined && input.statusId !== oldStatusId) {
+    emitSessionEventToEpic(updatedFeature.epicId, {
+      type: "feature_status_change",
+      payload: {
+        featureId: id,
+        identifier: updatedFeature.identifier,
+        title: updatedFeature.title,
+        newStatusId: input.statusId,
+        previousStatusId: oldStatusId ?? null,
+      },
+    }).catch(() => {});
     checkEpicCompletion(updatedFeature.epicId).catch((error) => {
       console.error("Failed to check epic completion after feature update:", error);
     });

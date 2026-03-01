@@ -2,6 +2,10 @@ import { prisma } from "../lib/db.js";
 import type { Case } from "../generated/prisma/index.js";
 import { NotFoundError, ValidationError } from "../errors/index.js";
 import * as agentScoreService from "./agentScoreService.js";
+import { spawn } from "child_process";
+import { generateSortOrderBetween } from "../utils/ordering.js";
+
+const OPENCLAW_BIN = "/opt/homebrew/bin/openclaw";
 
 // =============================================================================
 // Types
@@ -246,6 +250,9 @@ export async function issueVerdict(
       // Score record may not exist yet — don't block verdict
     });
 
+    // ENG-117-4: Auto-create remediation task for guilty verdicts (non-blocking)
+    createRemediationTask(caseId, input.verdictReason).catch(() => {});
+
     return updatedCase;
   }
 
@@ -286,13 +293,33 @@ export async function markCorrected(caseId: string): Promise<Case> {
   const c = await getCaseOrThrow(caseId);
   assertValidTransition(c.status, "corrected");
 
-  return prisma.case.update({
+  const updated = await prisma.case.update({
     where: { id: caseId },
     data: {
       status: "corrected",
       resolvedAt: new Date(),
     },
   });
+
+  // ENG-118-3: After correction, check if session compliance is clear
+  // Import lazily to avoid circular dependency risk
+  import("./epicService.js").then(async ({ checkSessionComplianceClear, fireComplianceClearNotification }) => {
+    // Find the most recent completed session to check
+    const recentSession = await prisma.aiSession.findFirst({
+      where: { status: "completed" },
+      orderBy: { endedAt: "desc" },
+      select: { epicId: true, id: true },
+    }).catch(() => null);
+
+    if (!recentSession) return;
+
+    const isClear = await checkSessionComplianceClear(recentSession.epicId);
+    if (isClear) {
+      await fireComplianceClearNotification(recentSession.epicId);
+    }
+  }).catch(() => {});
+
+  return updated;
 }
 
 // =============================================================================
@@ -345,4 +372,153 @@ export async function dismissCase(
       resolvedAt: new Date(),
     },
   });
+}
+
+// =============================================================================
+// PATCH case — update arbitrary fields (ENG-117-3)
+// =============================================================================
+
+export async function patchCase(
+  caseId: string,
+  data: { remediationTaskId?: string }
+): Promise<Case> {
+  const c = await getCaseOrThrow(caseId);
+  return prisma.case.update({
+    where: { id: c.id },
+    data,
+  });
+}
+
+// =============================================================================
+// Immediate Judge Trigger (ENG-115-1)
+// =============================================================================
+
+/**
+ * Trigger The Judge to adjudicate a newly filed case. Non-blocking.
+ * Also moves the case to 'hearing' status to prevent double-dispatch.
+ */
+export function triggerJudgeHearing(caseId: string): void {
+  // Move to hearing status (fire-and-forget)
+  prisma.case.update({
+    where: { id: caseId },
+    data: { status: "hearing" },
+  }).catch(() => {});
+
+  const prompt = [
+    `You are The Judge. Case ${caseId} has been filed.`,
+    "Read ~/Projects/SpecTree/.github/agents/judge.md and follow it exactly.",
+    `Adjudicate case ${caseId} immediately via API.`,
+    "Issue your verdict: read the case, verify evidence, consider context, then PUT /cases/:id/verdict.",
+  ].join(" ");
+
+  const child = spawn(OPENCLAW_BIN, ["system", "event", "--text", prompt, "--mode", "now"], {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
+// =============================================================================
+// Remediation Task Auto-Creation (ENG-117-1)
+// =============================================================================
+
+/**
+ * Auto-create a remediation task in Dispatcher when a guilty verdict is issued.
+ * Non-blocking — finds the most relevant epic from recent sessions.
+ */
+export async function createRemediationTask(
+  caseId: string,
+  violationSummary: string
+): Promise<void> {
+  try {
+    const c = await prisma.case.findUnique({
+      where: { id: caseId },
+      include: { law: true },
+    });
+    if (!c || !c.law) return;
+
+    // Find the most recently active/completed session for context (Barney audits epics)
+    const recentSession = await prisma.aiSession.findFirst({
+      where: { status: { in: ["active", "completed"] } },
+      orderBy: { startedAt: "desc" },
+      select: { epicId: true },
+    });
+
+    if (!recentSession) return;
+
+    const epicId = recentSession.epicId;
+
+    // Find the epic's first feature (for task attachment)
+    const feature = await prisma.feature.findFirst({
+      where: { epicId },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, identifier: true },
+    });
+
+    if (!feature) return;
+
+    // Generate unique task identifier
+    const existingTasks = await prisma.task.findMany({
+      where: { featureId: feature.id },
+      select: { identifier: true },
+    });
+
+    const prefix = `${feature.identifier}-`;
+    let maxNum = 0;
+    for (const t of existingTasks) {
+      if (t.identifier.startsWith(prefix)) {
+        const n = parseInt(t.identifier.slice(prefix.length), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    }
+    const identifier = `${prefix}${maxNum + 1}`;
+
+    // Generate sort order
+    const lastTask = await prisma.task.findFirst({
+      where: { featureId: feature.id },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const sortOrder = generateSortOrderBetween(lastTask?.sortOrder ?? null, null);
+
+    // Get epic's backlog status
+    const epic = await prisma.epic.findUnique({
+      where: { id: epicId },
+      select: { teamId: true },
+    });
+    const backlogStatus = epic?.teamId
+      ? await prisma.status.findFirst({ where: { teamId: epic.teamId, category: "backlog" } })
+      : null;
+
+    const title = `[REMEDIATION] Fix ${c.law.lawCode} violation: ${c.law.title}`;
+    const description = [
+      `Violation: ${violationSummary}`,
+      ``,
+      `Law: ${c.law.lawCode} — ${c.law.title}`,
+      `Case #${c.caseNumber} (${caseId})`,
+      ``,
+      `This task was auto-created by The Judge after a guilty verdict.`,
+      `Mark this task Done once the violation has been corrected.`,
+    ].join("\n");
+
+    const task = await prisma.task.create({
+      data: {
+        title,
+        featureId: feature.id,
+        identifier,
+        sortOrder,
+        description,
+        createdBy: "system",
+        ...(backlogStatus ? { statusId: backlogStatus.id } : {}),
+      },
+    });
+
+    // Link the remediation task to the case
+    await prisma.case.update({
+      where: { id: caseId },
+      data: { remediationTaskId: task.id },
+    });
+  } catch {
+    // Non-blocking — never propagate errors
+  }
 }

@@ -7,6 +7,8 @@ import {
   issueVerdict,
   markCorrected,
   dismissCase,
+  triggerJudgeHearing,
+  patchCase,
 } from "../services/caseService.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
@@ -96,7 +98,31 @@ export default function casesRoutes(
     },
     async (request, reply) => {
       const c = await fileCase(request.body);
+
+      // ENG-115-2: Trigger Judge immediately on case filing (non-blocking)
+      triggerJudgeHearing(c.id);
+
       return reply.status(201).send({ data: c });
+    }
+  );
+
+  /**
+   * PATCH /api/v1/cases/:id
+   * Update case fields (e.g., remediationTaskId) — ENG-117-3
+   */
+  fastify.patch<{ Params: CaseIdParams; Body: { remediationTaskId?: string } }>(
+    "/:id",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      try {
+        const c = await patchCase(request.params.id, request.body);
+        return reply.send({ data: c });
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return reply.status(400).send({ error: "Bad Request", message: error.message });
+        }
+        throw error;
+      }
     }
   );
 
