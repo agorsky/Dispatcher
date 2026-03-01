@@ -141,6 +141,11 @@ export function EpicDetailPage() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              {epic.identifier && (
+                <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+                  {epic.identifier}
+                </span>
+              )}
               <h1
                 className="text-lg font-semibold truncate cursor-pointer hover:text-muted-foreground transition-colors"
                 onClick={() => {

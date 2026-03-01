@@ -111,6 +111,11 @@ export function EpicCard({ epic, onEdit }: EpicCardProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
+                  {epic.identifier && (
+                    <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+                      {epic.identifier}
+                    </span>
+                  )}
                   <CardTitle className="text-base truncate">{epic.name}</CardTitle>
                   {epic.isArchived && (
                     <Badge variant="secondary" className="gap-1 text-xs">

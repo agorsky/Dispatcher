@@ -161,6 +161,76 @@ export async function listEpics(
  */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Generate a unique identifier for an epic based on team key or personal scope.
+ * Format: TEAM_KEY-E{NUMBER} (e.g., "ENG-E1") or "PERS-E{NUMBER}"
+ */
+async function generateEpicIdentifier(
+  teamId: string | null,
+  personalScopeId: string | null,
+  maxRetries = 5
+): Promise<string> {
+  let prefix: string;
+  let scopeFilter: { teamId?: string; personalScopeId?: string };
+
+  if (teamId) {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { key: true },
+    });
+    if (!team) {
+      throw new NotFoundError(`Team with id '${teamId}' not found`);
+    }
+    prefix = `${team.key}-E`;
+    scopeFilter = { teamId };
+  } else if (personalScopeId) {
+    prefix = "PERS-E";
+    scopeFilter = { personalScopeId };
+  } else {
+    throw new Error("Either teamId or personalScopeId is required to generate an epic identifier");
+  }
+
+  // Find highest existing identifier number for this scope
+  const existingEpics = await prisma.epic.findMany({
+    where: scopeFilter,
+    select: { identifier: true },
+  });
+
+  let maxNumber = 0;
+  for (const epic of existingEpics) {
+    if (epic.identifier && epic.identifier.startsWith(prefix)) {
+      const suffix = epic.identifier.slice(prefix.length);
+      const match = suffix.match(/^(\d+)/);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
+  }
+
+  const nextNumber = maxNumber + 1;
+
+  // Try to generate a unique identifier, retrying on collision
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const identifier = `${prefix}${nextNumber + attempt}`;
+
+    const existing = await prisma.epic.findUnique({
+      where: { identifier },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return identifier;
+    }
+  }
+
+  // Fallback: use timestamp-based suffix to guarantee uniqueness
+  const timestamp = Date.now();
+  return `${prefix}${nextNumber + maxRetries}-${timestamp}`;
+}
+
 export interface GetEpicOptions {
   includeArchived?: boolean | undefined;
 }
@@ -227,12 +297,16 @@ export async function createEpic(input: CreateEpicInput, userId?: string): Promi
     sortOrder = generateSortOrderBetween(lastEpic?.sortOrder ?? null, null);
   }
 
+  // Generate epic identifier
+  const identifier = await generateEpicIdentifier(input.teamId, null);
+
   // Build data object conditionally to avoid undefined values
   const data: {
     name: string;
     teamId: string;
     sortOrder: number;
     createdBy: string;
+    identifier: string;
     description?: string;
     icon?: string;
     color?: string;
@@ -241,6 +315,7 @@ export async function createEpic(input: CreateEpicInput, userId?: string): Promi
     teamId: input.teamId,
     sortOrder,
     createdBy: input.userId,
+    identifier,
   };
 
   if (input.description !== undefined) {
@@ -570,12 +645,16 @@ export async function createEpicComplete(
       epicStructuredDesc = JSON.stringify(structValidation.data);
     }
 
+    // Generate epic identifier
+    const epicIdentifier = await generateEpicIdentifier(team.id, null);
+
     // Build epic data with proper null handling for Prisma
     const epicData: {
       name: string;
       teamId: string;
       sortOrder: number;
       createdBy: string;
+      identifier: string;
       description?: string | null;
       icon?: string | null;
       color?: string | null;
@@ -585,6 +664,7 @@ export async function createEpicComplete(
       teamId: team.id,
       sortOrder: epicSortOrder,
       createdBy: userId,
+      identifier: epicIdentifier,
     };
     if (validatedInput.description !== undefined) {
       epicData.description = validatedInput.description.trim();
@@ -822,6 +902,7 @@ export async function createEpicComplete(
       epic: {
         id: epic.id,
         name: epic.name,
+        identifier: epic.identifier,
         description: epic.description,
         structuredDesc: epic.structuredDesc,
         teamId: team.id, // Use resolved team.id since we know it exists

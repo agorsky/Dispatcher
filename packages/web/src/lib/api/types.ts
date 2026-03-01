@@ -44,6 +44,7 @@ export interface StructuredDescription {
 export interface Epic {
   id: string;
   name: string;
+  identifier?: string | null;
   description?: string;
   structuredDesc?: StructuredDescription | null;
   teamId: string;

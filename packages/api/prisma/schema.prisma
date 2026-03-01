@@ -117,6 +117,7 @@ model Membership {
 model Epic {
   id              String   @id @default(uuid())
   name            String
+  identifier      String?  @unique @map("identifier")
   description     String?
   icon            String?
   color           String?
