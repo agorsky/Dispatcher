@@ -626,7 +626,7 @@ model AgentScore {
   id             String    @id @default(uuid())
   agentName      String    @unique @map("agent_name")
   agentTitle     String    @map("agent_title")
-  totalScore     Int       @default(100) @map("total_score")
+  totalScore     Int       @default(50) @map("total_score")
   bustsReceived  Int       @default(0) @map("busts_received")
   bustsIssued    Int       @default(0) @map("busts_issued")
   cleanCycles    Int       @default(0) @map("clean_cycles")
@@ -635,6 +635,27 @@ model AgentScore {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@map("agent_scores")
+}
+
+// =============================================================================
+// ScoreEvent Model
+// Append-only ledger of every score mutation for full audit trail
+// Valid type values: 'merit' | 'deduction'
+// =============================================================================
+
+model ScoreEvent {
+  id        String   @id @default(cuid())
+  agentName String   @map("agent_name")
+  type      String   // "merit" | "deduction"
+  points    Int      // positive for merit, negative for deduction
+  reason    String
+  caseId    String?  @map("case_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([agentName])
+  @@index([agentName, createdAt(sort: Desc)])
+  @@index([type])
+  @@map("score_events")
 }
 
 // =============================================================================

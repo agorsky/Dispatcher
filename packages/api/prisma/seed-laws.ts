@@ -267,6 +267,126 @@ const laws: LawSeed[] = [
       "Request may be auto-rejected if duplicate is found post-submission.",
     appliesTo: "request-formulator",
   },
+  {
+    lawCode: "LAW-016",
+    title: "Research Completions Must Reference Source",
+    description:
+      "Tommy (The Consigliere) must cite verifiable sources for all research outputs and strategic " +
+      "briefings. Unverified claims presented as fact are a violation. Each research completion " +
+      "must include at least one source reference.",
+    severity: "major",
+    auditLogic:
+      "Review tommy's session outputs for source citations. Check AI notes and briefing content " +
+      "for source references (URLs, document names, data sources). Flag any research completion " +
+      "with zero source citations where factual claims are made.",
+    consequence:
+      "Research output is marked unverified and cannot be used for planning. " +
+      "Tommy must re-submit with proper source attribution.",
+    appliesTo: "tommy",
+  },
+  {
+    lawCode: "LAW-017",
+    title: "Content Deliveries Must Have Completion Notes",
+    description:
+      "Silvio (The Scribe) must log completion notes when delivering content or post events. " +
+      "Each content delivery must have AI notes indicating what was created, the intended audience, " +
+      "and the channel/platform it was published to.",
+    severity: "minor",
+    auditLogic:
+      "For each silvio content delivery event, check aiNotes on the associated task. " +
+      "Verify notes contain: what was created, target audience, publication channel. " +
+      "Flag deliveries with empty or minimal notes.",
+    consequence:
+      "Content delivery is flagged as undocumented. Future sessions cannot reference " +
+      "what was published without proper notes.",
+    appliesTo: "silvio",
+  },
+  {
+    lawCode: "LAW-018",
+    title: "Memory Writes Must Be Accurate and Non-Fabricated",
+    description:
+      "Sal (The Keeper) must never write fabricated or speculative information to the knowledge " +
+      "graph or memory stores. All memory writes must be grounded in actual events, decisions, " +
+      "or verified facts. Speculation must be labeled as such.",
+    severity: "critical",
+    auditLogic:
+      "Audit sal's knowledge graph writes by cross-referencing written facts against actual " +
+      "session records, decisions, and task outcomes. Flag any memory entries that cannot be " +
+      "verified against the Dispatcher record of events.",
+    consequence:
+      "Fabricated memory corrupts the knowledge base for all future sessions. " +
+      "Sal's recent writes are quarantined pending review. Repeat violations result in " +
+      "knowledge graph write restrictions.",
+    appliesTo: "sal",
+  },
+  {
+    lawCode: "LAW-019",
+    title: "Design Deliveries Must Include Acceptance Criteria",
+    description:
+      "Paulie (The Tailor) must include acceptance criteria when delivering design outputs or " +
+      "image generation completions. Each design delivery must specify what 'done' looks like " +
+      "so reviewers can assess the output.",
+    severity: "minor",
+    auditLogic:
+      "For each paulie design delivery, check associated task structured description for " +
+      "acceptanceCriteria. Verify at least 2 acceptance criteria are present. " +
+      "Flag deliveries where the design task has no acceptance criteria.",
+    consequence:
+      "Design output cannot be reviewed or approved without clear acceptance criteria. " +
+      "Paulie must add criteria before the delivery is accepted.",
+    appliesTo: "paulie",
+  },
+  {
+    lawCode: "LAW-020",
+    title: "Ghostwriting Completions Must Log Attribution",
+    description:
+      "Henry (The Ghostwriter) must log attribution metadata when completing ghostwriting work. " +
+      "Each ghostwriting session completion must note: the intended author/voice, the content type, " +
+      "and the delivery destination.",
+    severity: "minor",
+    auditLogic:
+      "Review henry's completed ghostwriting task AI notes for attribution metadata. " +
+      "Verify notes contain: intended author/voice, content type (email/post/article/etc.), " +
+      "and delivery destination. Flag completions missing any of these three fields.",
+    consequence:
+      "Ghostwritten content without attribution metadata cannot be properly delivered " +
+      "or attributed. Henry must update notes before the task is accepted as complete.",
+    appliesTo: "henry",
+  },
+  {
+    lawCode: "LAW-021",
+    title: "Direct File Edits Must Be Logged via Code Context",
+    description:
+      "The Claw Father, when directly editing files or making API calls, must ensure all " +
+      "modified files are registered via code context. Direct edits bypass the normal agent " +
+      "workflow and must be explicitly documented.",
+    severity: "major",
+    auditLogic:
+      "Check git diff for any files modified during the-claw-father sessions. " +
+      "Compare against code context links on associated tasks. Flag any files modified " +
+      "directly that are not registered in the code context.",
+    consequence:
+      "Unlogged direct edits create blind spots in the audit trail. " +
+      "The Claw Father must retroactively register all modified files before session close.",
+    appliesTo: "the-claw-father",
+  },
+  {
+    lawCode: "LAW-022",
+    title: "Agent Dispatches Must Have Associated Task Records",
+    description:
+      "The Claw Father must create or reference a task record before dispatching any agent. " +
+      "Ad-hoc agent dispatches without a corresponding task are not permitted. Every dispatch " +
+      "must have a traceable work item in Dispatcher.",
+    severity: "major",
+    auditLogic:
+      "Audit the-claw-father's agent dispatch events. For each dispatch, verify a corresponding " +
+      "task or feature exists in Dispatcher with appropriate status. Flag dispatches where no " +
+      "traceable work item can be found in the same session window.",
+    consequence:
+      "Untraceable agent dispatches cannot be audited or attributed. " +
+      "Work performed by dispatched agents may be discarded if no task record exists.",
+    appliesTo: "the-claw-father",
+  },
 ];
 
 async function seedLaws(): Promise<void> {
