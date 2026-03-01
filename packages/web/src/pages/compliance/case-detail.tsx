@@ -108,9 +108,9 @@ export function CaseDetailPage() {
         {/* Evidence */}
         <Card className="p-5">
           <h2 className="text-base font-semibold mb-4">Evidence</h2>
-          {caseData.evidence && caseData.evidence.length > 0 ? (
+          {Array.isArray(caseData.evidence) && caseData.evidence.length > 0 ? (
             <div className="space-y-3">
-              {caseData.evidence.map((e, i) => {
+              {(caseData.evidence as Array<{type:string;reference:string;description:string}>).map((e, i) => {
                 const Icon = evidenceIcons[e.type] ?? FileText;
                 return (
                   <div key={i} className="flex gap-3 rounded-md border p-3">

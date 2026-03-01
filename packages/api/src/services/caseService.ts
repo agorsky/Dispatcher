@@ -81,6 +81,27 @@ async function getNextCaseNumber(): Promise<number> {
 }
 
 // =============================================================================
+// Helper: parse evidence (stored as JSON string in DB, must be array on output)
+// =============================================================================
+
+function parseEvidence(raw: unknown): Array<{ type: string; reference: string; description: string }> {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeCase<T extends { evidence: unknown }>(c: T): T {
+  return { ...c, evidence: parseEvidence(c.evidence) };
+}
+
+// =============================================================================
 // Helper: fetch case or throw
 // =============================================================================
 
@@ -89,7 +110,7 @@ async function getCaseOrThrow(caseId: string): Promise<Case> {
   if (!c) {
     throw new NotFoundError(`Case '${caseId}' not found`);
   }
-  return c;
+  return normalizeCase(c);
 }
 
 // =============================================================================
@@ -124,7 +145,7 @@ export async function listCases(
   const nextCursor = hasMore && lastCase ? lastCase.id : null;
 
   return {
-    data: cases,
+    data: cases.map(normalizeCase),
     meta: { cursor: nextCursor, hasMore },
   };
 }
@@ -137,7 +158,7 @@ export async function getCase(caseId: string) {
   if (!c) {
     throw new NotFoundError(`Case '${caseId}' not found`);
   }
-  return c;
+  return normalizeCase(c);
 }
 
 export async function fileCase(input: FileCaseInput): Promise<Case> {
