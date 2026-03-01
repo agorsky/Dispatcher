@@ -23,11 +23,14 @@ export interface Case {
   status: string;
   evidence: CaseEvidence[];
   verdict?: string;
+  verdictReason?: string;
   reasoning?: string;
   deductionLevel?: string;
+  filedBy?: string;
   filedAt: string;
   hearingAt?: string;
   verdictAt?: string;
+  resolvedAt?: string;
   correctedAt?: string;
   createdAt: string;
   updatedAt: string;

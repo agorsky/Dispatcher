@@ -64,7 +64,7 @@ export function CaseDetailPage() {
   const timelineEvents = [
     { label: 'Filed', date: caseData.filedAt, icon: Clock },
     { label: 'Hearing', date: caseData.hearingAt, icon: Gavel },
-    { label: 'Verdict', date: caseData.verdictAt, icon: CheckCircle },
+    { label: 'Verdict', date: caseData.verdictAt ?? caseData.resolvedAt, icon: CheckCircle },
     { label: 'Corrected', date: caseData.correctedAt, icon: CheckCircle },
   ].filter((e) => e.date);
 
@@ -137,10 +137,10 @@ export function CaseDetailPage() {
                 <p className="text-xs text-muted-foreground mb-1">Verdict</p>
                 <p className="text-sm font-medium">{caseData.verdict}</p>
               </div>
-              {caseData.reasoning && (
+              {(caseData.verdictReason ?? caseData.reasoning) && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Reasoning</p>
-                  <p className="text-sm">{caseData.reasoning}</p>
+                  <p className="text-sm">{caseData.verdictReason ?? caseData.reasoning}</p>
                 </div>
               )}
               {caseData.deductionLevel && (
