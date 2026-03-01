@@ -143,6 +143,7 @@ export interface CreateEpicCompleteResponse {
   epic: {
     id: string;
     name: string;
+    identifier: string | null;
     description: string | null;
     structuredDesc: string | null;
     teamId: string;
