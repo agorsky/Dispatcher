@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic } from "@/hooks/queries/use-epics";
 import { IssuesList } from "@/components/issues/issues-list";
@@ -6,7 +6,7 @@ import { FeatureForm } from "@/components/features/feature-form";
 import { MarkdownRenderer } from "@/components/common/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Trash2, Check, X, MoreHorizontal, ChevronDown, ChevronRight, Archive, ArchiveRestore, FileText, ExternalLink, AlertTriangle, Clock, Terminal, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Check, X, MoreHorizontal, ChevronDown, ChevronRight, Archive, ArchiveRestore, FileText, ExternalLink, AlertTriangle, Clock } from "lucide-react";
 import { PlanView } from "@/components/execution-plan";
 import { DetailTabs, TabsContent } from "@/components/detail-tabs/detail-tabs";
 import { SessionMonitor } from "@/components/session";
@@ -44,7 +44,6 @@ export function EpicDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
   
   // Initialize active tab from URL params or default to 'overview'
   const initialTab = (searchParams.get('tab') as 'overview' | 'plan' | 'monitor') || 'overview';
@@ -64,30 +63,6 @@ export function EpicDetailPage() {
       setSearchParams(newParams, { replace: true });
     }
   }, [activeTab, searchParams, setSearchParams]);
-
-  // All hooks must be called before any early returns
-  const handleCopyCommand = useCallback(async (command: string) => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = command;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    }
-  }, []);
 
   if (isLoading) {
     return (
@@ -135,7 +110,6 @@ export function EpicDetailPage() {
     await unarchiveEpic.mutateAsync(epic.id);
   };
 
-  const orchestratorCommand = `\\orchestrator execute epic "${epic.name}"`;
 
   return (
     <div className="h-full flex flex-col">
@@ -396,35 +370,6 @@ export function EpicDetailPage() {
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Orchestrator Command */}
-      {!epic.isArchived && (
-        <div className="border-b bg-muted/30 px-4 py-3">
-          <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Terminal className="h-4 w-4" />
-              <span>Execute this Epic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-background px-3 py-2 text-sm font-mono border select-all">
-                {orchestratorCommand}
-              </code>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => { void handleCopyCommand(orchestratorCommand); }}
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
         </div>
       )}
 
