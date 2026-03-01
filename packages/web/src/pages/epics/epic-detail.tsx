@@ -66,7 +66,7 @@ export function EpicDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
         <div className="h-6 w-full animate-pulse rounded bg-muted" />
       </div>
@@ -75,7 +75,7 @@ export function EpicDetailPage() {
 
   if (!epic) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <p className="text-muted-foreground">Epic not found</p>
         <Button variant="ghost" onClick={() => navigate("/epics")} className="mt-4">
           <ArrowLeft className="h-4 w-4 mr-2" />

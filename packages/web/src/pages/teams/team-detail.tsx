@@ -35,7 +35,7 @@ export function TeamDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="h-8 w-48 animate-pulse rounded bg-muted mb-6" />
         <div className="h-10 w-64 animate-pulse rounded bg-muted" />
       </div>
@@ -44,7 +44,7 @@ export function TeamDetailPage() {
 
   if (!team) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Team not found</p>
         </div>
@@ -70,7 +70,7 @@ export function TeamDetailPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">{team.name}</h1>
+        <h1 className="text-xl md:text-2xl font-semibold">{team.name}</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => { setIsEditOpen(true); }}>
             <Pencil className="h-4 w-4 mr-2" />

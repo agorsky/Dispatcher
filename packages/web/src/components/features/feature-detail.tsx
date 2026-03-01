@@ -186,9 +186,9 @@ export function FeatureDetail() {
       </div>
 
       {/* Content with sidebar layout */}
-      <div className="flex-1 overflow-auto flex">
+      <div className="flex-1 overflow-auto flex flex-col md:flex-row">
         {/* Main content */}
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 p-4 md:p-6 overflow-auto">
           <DetailTabs
             tabs={[
               { id: "description", label: "Description" },
@@ -233,7 +233,7 @@ export function FeatureDetail() {
         </div>
 
         {/* Properties sidebar */}
-        <div className="w-56 border-l p-4 space-y-1 shrink-0">
+        <div className="w-full md:w-56 border-t md:border-t-0 md:border-l p-4 space-y-1 md:shrink-0">
           <div className="text-xs font-medium text-muted-foreground mb-3">Properties</div>
           
           {/* Status property */}

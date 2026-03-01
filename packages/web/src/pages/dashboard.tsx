@@ -67,11 +67,11 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Activity Dashboard</h1>
+          <h1 className="text-xl md:text-2xl font-semibold">Activity Dashboard</h1>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-sm text-muted-foreground">
               Agent activity across epic requests, epics, features, tasks, decisions, and AI sessions

@@ -11,10 +11,10 @@ import { MarkdownRenderer } from "@/components/common/markdown-renderer";
 
 export function WhatsNewPage() {
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold">What's New in Dispatcher</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">What's New in Dispatcher</h1>
           <Badge variant="outline" className="text-xs">v0.2.0</Badge>
         </div>
         <p className="text-muted-foreground">

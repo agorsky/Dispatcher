@@ -12,9 +12,9 @@ export function TeamsPage() {
   const teams = data?.data ?? [];
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Teams</h1>
+        <h1 className="text-xl md:text-2xl font-semibold">Teams</h1>
         <Button onClick={() => { setIsFormOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           New Team

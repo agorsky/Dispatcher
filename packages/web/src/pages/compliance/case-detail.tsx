@@ -216,23 +216,18 @@ export function CaseDetailPage() {
       {timelineEvents.length > 0 && (
         <Card className="p-5">
           <h2 className="text-base font-semibold mb-4">Timeline</h2>
-          <div className="flex items-start gap-0">
-            {timelineEvents.map((event, i) => {
+          <div className="flex flex-wrap items-start gap-4">
+            {timelineEvents.map((event) => {
               const Icon = event.icon;
               return (
-                <div key={event.label} className="flex items-center">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                      <Icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <p className="text-xs font-medium mt-2">{event.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDate(event.date)}
-                    </p>
+                <div key={event.label} className="flex flex-col items-center text-center min-w-[80px]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <Icon className="h-4 w-4 text-primary" />
                   </div>
-                  {i < timelineEvents.length - 1 && (
-                    <div className="h-px w-12 bg-border mt-4 mx-2" />
-                  )}
+                  <p className="text-xs font-medium mt-2">{event.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {formatDate(event.date)}
+                  </p>
                 </div>
               );
             })}
