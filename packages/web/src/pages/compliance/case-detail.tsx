@@ -26,6 +26,7 @@ const evidenceIcons: Record<string, typeof FileText> = {
   document: FileText,
   link: LinkIcon,
   violation: AlertTriangle,
+  log: FileText,
 };
 
 function formatDate(date?: string) {
@@ -64,7 +65,7 @@ export function CaseDetailPage() {
   const timelineEvents = [
     { label: 'Filed', date: caseData.filedAt, icon: Clock },
     { label: 'Hearing', date: caseData.hearingAt, icon: Gavel },
-    { label: 'Verdict', date: caseData.verdictAt, icon: CheckCircle },
+    { label: 'Verdict', date: caseData.verdictAt ?? caseData.resolvedAt, icon: CheckCircle },
     { label: 'Corrected', date: caseData.correctedAt, icon: CheckCircle },
   ].filter((e) => e.date);
 
@@ -94,30 +95,75 @@ export function CaseDetailPage() {
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>Accused: <span className="font-medium text-foreground">{caseData.accusedAgent}</span></span>
-          {caseData.law && (
-            <span>
-              Law: <span className="font-mono font-medium text-foreground">{caseData.law.lawCode}</span>
-              {' — '}
-              {caseData.law.title}
-            </span>
+          {caseData.filedBy && (
+            <span>Filed by: <span className="font-medium text-foreground">{caseData.filedBy}</span></span>
           )}
         </div>
       </div>
+
+      {/* The Charge — full-width law detail card */}
+      {caseData.law && (
+        <Card className="p-5">
+          <h2 className="text-base font-semibold mb-4">The Charge</h2>
+          <div className="space-y-4">
+            <div className="flex items-start gap-4 flex-wrap">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Law Code</p>
+                <p className="font-mono text-base font-semibold">{caseData.law.lawCode}</p>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-1">Title</p>
+                <p className="text-sm font-medium">{caseData.law.title}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Severity</p>
+                <Badge className={cn('text-xs', severityColors[caseData.law.severity] ?? '')}>
+                  {caseData.law.severity}
+                </Badge>
+              </div>
+            </div>
+            {caseData.law.description && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Description</p>
+                <p className="text-sm">{caseData.law.description}</p>
+              </div>
+            )}
+            {caseData.law.auditLogic && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Audit Logic</p>
+                <p className="text-sm">{caseData.law.auditLogic}</p>
+              </div>
+            )}
+            {caseData.law.consequence && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Consequence</p>
+                <p className="text-sm">{caseData.law.consequence}</p>
+              </div>
+            )}
+            {caseData.law.appliesTo && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Applies To</p>
+                <p className="text-sm">{caseData.law.appliesTo}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Evidence */}
         <Card className="p-5">
           <h2 className="text-base font-semibold mb-4">Evidence</h2>
-          {caseData.evidence && caseData.evidence.length > 0 ? (
+          {Array.isArray(caseData.evidence) && caseData.evidence.length > 0 ? (
             <div className="space-y-3">
-              {caseData.evidence.map((e, i) => {
+              {(caseData.evidence as Array<{type:string;reference:string;description:string}>).map((e, i) => {
                 const Icon = evidenceIcons[e.type] ?? FileText;
                 return (
                   <div key={i} className="flex gap-3 rounded-md border p-3">
                     <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                     <div className="space-y-1 min-w-0">
                       <p className="text-sm font-medium">{e.reference}</p>
-                      <p className="text-xs text-muted-foreground">{e.description}</p>
+                      <p className="text-sm text-muted-foreground">{e.description}</p>
                     </div>
                   </div>
                 );
@@ -137,10 +183,12 @@ export function CaseDetailPage() {
                 <p className="text-xs text-muted-foreground mb-1">Verdict</p>
                 <p className="text-sm font-medium">{caseData.verdict}</p>
               </div>
-              {caseData.reasoning && (
+              {(caseData.verdictReason ?? caseData.reasoning) && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Reasoning</p>
-                  <p className="text-sm">{caseData.reasoning}</p>
+                  <div className="bg-muted/50 rounded p-3">
+                    <p className="text-sm">{caseData.verdictReason ?? caseData.reasoning}</p>
+                  </div>
                 </div>
               )}
               {caseData.deductionLevel && (
@@ -149,6 +197,12 @@ export function CaseDetailPage() {
                   <Badge variant="outline" className="text-xs">
                     {caseData.deductionLevel}
                   </Badge>
+                </div>
+              )}
+              {caseData.filedBy && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Filed by</p>
+                  <p className="text-sm">{caseData.filedBy}</p>
                 </div>
               )}
             </div>

@@ -11,6 +11,10 @@ export interface CaseLaw {
   lawCode: string;
   title: string;
   severity: string;
+  description?: string;
+  auditLogic?: string;
+  consequence?: string;
+  appliesTo?: string;
 }
 
 export interface Case {
@@ -23,11 +27,14 @@ export interface Case {
   status: string;
   evidence: CaseEvidence[];
   verdict?: string;
+  verdictReason?: string;
   reasoning?: string;
   deductionLevel?: string;
+  filedBy?: string;
   filedAt: string;
   hearingAt?: string;
   verdictAt?: string;
+  resolvedAt?: string;
   correctedAt?: string;
   createdAt: string;
   updatedAt: string;
