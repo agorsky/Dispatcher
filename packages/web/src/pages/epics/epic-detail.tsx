@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic } from "@/hooks/queries/use-epics";
+import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic, useCompleteEpic, useReopenEpic } from "@/hooks/queries/use-epics";
 import { IssuesList } from "@/components/issues/issues-list";
 import { FeatureForm } from "@/components/features/feature-form";
 import { MarkdownRenderer } from "@/components/common/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Trash2, Check, X, MoreHorizontal, ChevronDown, ChevronRight, Archive, ArchiveRestore, FileText, ExternalLink, AlertTriangle, Clock } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Check, X, MoreHorizontal, ChevronDown, ChevronRight, Archive, ArchiveRestore, FileText, ExternalLink, AlertTriangle, Clock, CheckCircle2, RotateCcw } from "lucide-react";
+import { format } from "date-fns";
 import { PlanView } from "@/components/execution-plan";
 import { DetailTabs, TabsContent } from "@/components/detail-tabs/detail-tabs";
 import { SessionMonitor } from "@/components/session";
@@ -37,6 +38,8 @@ export function EpicDetailPage() {
   const deleteEpic = useDeleteEpic();
   const archiveEpic = useArchiveEpic();
   const unarchiveEpic = useUnarchiveEpic();
+  const completeEpic = useCompleteEpic();
+  const reopenEpic = useReopenEpic();
 
   const [isFeatureFormOpen, setIsFeatureFormOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -110,9 +113,39 @@ export function EpicDetailPage() {
     await unarchiveEpic.mutateAsync(epic.id);
   };
 
+  const handleComplete = async () => {
+    await completeEpic.mutateAsync(epic.id);
+  };
+
+  const handleReopen = async () => {
+    await reopenEpic.mutateAsync(epic.id);
+  };
+
+  const isCompleted = epic.status === 'completed';
+
 
   return (
     <div className="h-full flex flex-col">
+      {/* Completion Banner */}
+      {isCompleted && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-green-50 dark:bg-green-950 border-b border-green-200 dark:border-green-800 text-green-800 dark:text-green-200">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span className="text-sm font-medium">
+            Epic completed{epic.completedAt ? ` on ${format(new Date(epic.completedAt), 'MMM d, yyyy')}` : ''}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-7 text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900"
+            onClick={() => void handleReopen()}
+            disabled={reopenEpic.isPending}
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+            {reopenEpic.isPending ? 'Reopening...' : 'Reopen'}
+          </Button>
+        </div>
+      )}
+
       {/* Header - Clean top bar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b bg-background">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/epics")}>
@@ -147,9 +180,9 @@ export function EpicDetailPage() {
                 </span>
               )}
               <h1
-                className="text-lg font-semibold truncate cursor-pointer hover:text-muted-foreground transition-colors"
+                className={`text-lg font-semibold truncate transition-colors ${!epic.isArchived && !isCompleted ? 'cursor-pointer hover:text-muted-foreground' : 'cursor-default'}`}
                 onClick={() => {
-                  if (!epic.isArchived) {
+                  if (!epic.isArchived && !isCompleted) {
                     setEditedName(epic.name);
                     setIsEditingName(true);
                   }
@@ -161,6 +194,12 @@ export function EpicDetailPage() {
                 <Badge variant="secondary" className="gap-1">
                   <Archive className="h-3 w-3" />
                   Archived
+                </Badge>
+              )}
+              {!epic.isArchived && isCompleted && (
+                <Badge className="gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Completed
                 </Badge>
               )}
               {/* Creator Attribution */}
@@ -200,7 +239,7 @@ export function EpicDetailPage() {
               <ArchiveRestore className="h-4 w-4 mr-1.5" />
               {unarchiveEpic.isPending ? "Restoring..." : "Restore Epic"}
             </Button>
-          ) : import.meta.env.VITE_SHOW_CREATION_FORMS === 'true' ? (
+          ) : !isCompleted && import.meta.env.VITE_SHOW_CREATION_FORMS === 'true' ? (
             <Button size="sm" onClick={() => setIsFeatureFormOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" />
               New Feature
@@ -231,10 +270,21 @@ export function EpicDetailPage() {
                 </>
               ) : (
                 <>
-                  {import.meta.env.VITE_SHOW_CREATION_FORMS === 'true' && (
+                  {!isCompleted && import.meta.env.VITE_SHOW_CREATION_FORMS === 'true' && (
                     <DropdownMenuItem onClick={() => setIsFeatureFormOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       New Feature
+                    </DropdownMenuItem>
+                  )}
+                  {!isCompleted ? (
+                    <DropdownMenuItem onClick={() => void handleComplete()}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      {completeEpic.isPending ? 'Completing...' : 'Mark as Complete'}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => void handleReopen()}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      {reopenEpic.isPending ? 'Reopening...' : 'Reopen Epic'}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />

@@ -9,6 +9,8 @@ import {
   unarchiveEpic,
   createEpicComplete,
   transferEpicScope,
+  completeEpic,
+  reopenEpic,
 } from "../services/epicService.js";
 import {
   getEpicAiContext,
@@ -56,6 +58,7 @@ interface ListEpicsQuery {
   teamId?: string;
   includeArchived?: string;
   createdBy?: string;
+  status?: string;
 }
 
 interface EpicIdParams {
@@ -103,7 +106,7 @@ export default function epicsRoutes(
     "/",
     { preHandler: [authenticate] },
     async (request, reply) => {
-      const options: { cursor?: string; limit?: number; teamId?: string; currentUserId?: string; includeArchived?: boolean; createdBy?: string } = {};
+      const options: { cursor?: string; limit?: number; teamId?: string; currentUserId?: string; includeArchived?: boolean; createdBy?: string; status?: string } = {};
       if (request.query.cursor) {
         options.cursor = request.query.cursor;
       }
@@ -126,6 +129,16 @@ export default function epicsRoutes(
           });
         }
         options.createdBy = request.query.createdBy;
+      }
+      if (request.query.status) {
+        const validStatuses = ["active", "completed"];
+        if (!validStatuses.includes(request.query.status)) {
+          return reply.status(400).send({
+            error: "Bad Request",
+            message: "status must be 'active' or 'completed'",
+          });
+        }
+        options.status = request.query.status;
       }
       // Global admins see all epics; others are filtered to their accessible scopes
       if (request.user?.id && !request.user.isGlobalAdmin) {
@@ -265,6 +278,36 @@ export default function epicsRoutes(
       const { id } = request.params;
 
       const epic = await unarchiveEpic(id);
+      return reply.send({ data: epic });
+    }
+  );
+
+  /**
+   * PATCH /api/v1/epics/:id/complete
+   * Mark an epic as completed (manual lifecycle control)
+   * Requires authentication, team membership, and member+ role
+   */
+  fastify.patch<{ Params: EpicIdParams }>(
+    "/:id/complete",
+    { preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("member")] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const epic = await completeEpic(id, request.user?.id);
+      return reply.send({ data: epic });
+    }
+  );
+
+  /**
+   * PATCH /api/v1/epics/:id/reopen
+   * Reopen a completed epic (set status back to active)
+   * Requires authentication, team membership, and member+ role
+   */
+  fastify.patch<{ Params: EpicIdParams }>(
+    "/:id/reopen",
+    { preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("member")] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const epic = await reopenEpic(id, request.user?.id);
       return reply.send({ data: epic });
     }
   );

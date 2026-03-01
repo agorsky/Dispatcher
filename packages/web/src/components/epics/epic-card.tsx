@@ -25,7 +25,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Folder, MoreVertical, Trash2, Pencil, Archive, ArchiveRestore } from "lucide-react";
+import { Folder, MoreVertical, Trash2, Pencil, Archive, ArchiveRestore, CheckCircle2 } from "lucide-react";
 import { useDeleteEpic, useArchiveEpic, useUnarchiveEpic } from "@/hooks/queries/use-epics";
 import { ApiError } from "@/lib/api/client";
 import { formatDistanceToNow } from "date-fns";
@@ -102,7 +102,7 @@ export function EpicCard({ epic, onEdit }: EpicCardProps) {
 
   return (
     <>
-      <Card className={`hover:bg-muted/50 transition-colors cursor-pointer group relative ${epic.isArchived ? 'opacity-60' : ''}`}>
+      <Card className={`hover:bg-muted/50 transition-colors cursor-pointer group relative ${epic.isArchived || epic.status === 'completed' ? 'opacity-60' : ''}`}>
         <Link to={`/epics/${epic.id}`}>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -121,6 +121,12 @@ export function EpicCard({ epic, onEdit }: EpicCardProps) {
                     <Badge variant="secondary" className="gap-1 text-xs">
                       <Archive className="h-3 w-3" />
                       Archived
+                    </Badge>
+                  )}
+                  {!epic.isArchived && epic.status === 'completed' && (
+                    <Badge className="gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Completed
                     </Badge>
                   )}
                 </div>
