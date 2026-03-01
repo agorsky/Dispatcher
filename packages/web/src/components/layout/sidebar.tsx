@@ -14,7 +14,11 @@ const navItems = [
 
 const VERSION = "0.2.0";
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const location = useLocation();
 
   return (
@@ -30,6 +34,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             to={item.href}
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               location.pathname === item.href ||
@@ -46,7 +51,7 @@ export function Sidebar() {
 
       {/* Version Badge */}
       <div className="border-t p-3 flex justify-center">
-        <Link to="/whats-new">
+        <Link to="/whats-new" onClick={onNavigate}>
           <Badge
             variant="secondary"
             className="text-xs cursor-pointer transition-colors hover:bg-secondary/80"

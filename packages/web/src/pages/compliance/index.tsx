@@ -9,9 +9,9 @@ export function CompliancePage() {
   const [activeTab, setActiveTab] = useState('cases');
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Compliance</h1>
+        <h1 className="text-xl md:text-2xl font-semibold">Compliance</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Cases, agent scores, and law registry
         </p>

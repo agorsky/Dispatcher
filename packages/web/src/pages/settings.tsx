@@ -76,8 +76,8 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="p-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-6">Settings</h1>
+    <div className="p-4 md:p-6 max-w-2xl">
+      <h1 className="text-xl md:text-2xl font-semibold mb-6">Settings</h1>
 
       {/* Profile Section */}
       <Card className="mb-6">

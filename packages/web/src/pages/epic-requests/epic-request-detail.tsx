@@ -81,7 +81,7 @@ export function EpicRequestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
         <div className="h-6 w-full animate-pulse rounded bg-muted" />
       </div>
@@ -90,7 +90,7 @@ export function EpicRequestDetailPage() {
 
   if (!request) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <p className="text-muted-foreground">Epic request not found</p>
         <Button
           variant="ghost"
@@ -263,22 +263,22 @@ export function EpicRequestDetailPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b bg-background">
+      <div className="flex items-center gap-2 px-4 py-3 border-b bg-background md:px-6 md:gap-3 md:py-4">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 shrink-0"
           onClick={() => { void navigate('/epic-requests'); }}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
 
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold truncate">{request.title}</h1>
+          <h1 className="text-base md:text-xl font-semibold truncate">{request.title}</h1>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
           {/* Edit Button - visible for creator when status != approved/converted */}
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => { handleEdit(); }}>
@@ -367,7 +367,7 @@ export function EpicRequestDetailPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
           {/* Approve/Reject Buttons - full-width at top */}
           {canApproveReject && request.status === 'pending' && (
             <div className="flex gap-3 w-full">

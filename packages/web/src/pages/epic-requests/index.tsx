@@ -156,16 +156,16 @@ export function EpicRequestsPage() {
   );
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Epic Requests</h1>
+        <h1 className="text-xl md:text-2xl font-semibold">Epic Requests</h1>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         {/* Search input */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 min-w-[160px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"

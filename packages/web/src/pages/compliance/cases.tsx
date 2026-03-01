@@ -50,7 +50,7 @@ export function CasesPage() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Select
           value={filters.status ?? '_all'}
           onValueChange={(v) => updateFilter('status', v)}
@@ -127,7 +127,7 @@ export function CasesPage() {
               <p className="text-muted-foreground">No cases found</p>
             </div>
           ) : (
-            <div className="rounded-lg border">
+            <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
