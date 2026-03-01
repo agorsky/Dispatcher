@@ -258,7 +258,7 @@ The epic request provides the **requirements**. Your job in this stage is to com
 
    **Epic description quality (applies to BOTH standard and --from-request modes):**
 
-   The epic `description` field must be a comprehensive reference document that scores >= 80 on the Epic Description Rubric in Stage 4. It must include: Overview, Problem Statement, Goals, Proposed Approach (with architecture details), Scope Definition, Execution Plan, Technical Considerations, Success Criteria, and at least 2 supporting sections. See the Epic Description Score rubric in Stage 4 for full details.
+   The epic `description` field must be a comprehensive reference document that scores >= 95 on the Epic Description Rubric in Stage 4. It must include: Overview, Problem Statement, Goals, Proposed Approach (with architecture details), Scope Definition, Execution Plan, Technical Considerations, Success Criteria, and at least 2 supporting sections. See the Epic Description Score rubric in Stage 4 for full details.
 
    **Epic creation call:**
    ```
@@ -413,7 +413,7 @@ Compute four sub-scores (0-100 each), then compute a weighted **Overall Score**.
 
 #### Epic Description Score (0-100)
 
-🔴 **Hard floor: An epic whose Epic Description Score is below 80 is NEVER ready, regardless of the overall score.** A weak epic description undermines everything downstream.
+🔴 **Hard floor: An epic whose Epic Description Score is below 95 is NEVER ready, regardless of the overall score.** Opus-quality planning demands near-perfect epic descriptions — anything under 95 is unacceptable.
 
 Evaluate the epic description as a standalone reference document. Any engineer (human or AI) should be able to understand the full scope, approach, and constraints without reading anything else.
 
@@ -436,7 +436,7 @@ Evaluate the epic description as a standalone reference document. Any engineer (
 
 **Word count check:** Flag any description under 300 words as a critical issue regardless of section scores.
 
-**If the Epic Description Score is below 80:** You MUST update the epic description using `dispatcher__update_epic` to add the missing/thin sections, then re-score. Use the codebase analysis from Stage 1 to enrich technical sections.
+**If the Epic Description Score is below 95:** You MUST update the epic description using `dispatcher__update_epic` to add the missing/thin sections, then re-score. Use the codebase analysis from Stage 1 to enrich technical sections.
 
 #### Structure Score (0-100)
 
@@ -483,8 +483,8 @@ Overall = (Epic Description * 0.30) + (Structure * 0.25) + (Detail * 0.25) + (Sc
 Epic Description is weighted highest (30%) because it is the most commonly under-specified section and drives all downstream quality.
 
 **Minimum thresholds:**
-- **Overall Score must be >= 80** to proceed to Stage 5
-- **Epic Description Score must be >= 80** regardless of overall score (hard floor)
+- **Overall Score must be >= 95** to proceed to Stage 5
+- **Epic Description Score must be >= 95** regardless of overall score (hard floor)
 
 If either threshold fails, you MUST fix the failing checks, then re-score. Do NOT proceed to Stage 5 until both thresholds pass.
 
@@ -545,7 +545,7 @@ If any threshold fails, fix each issue (call `dispatcher__update_epic` for descr
 3. **MUST** call `spectree__analyze_file_impact` on proposed file paths before creating the epic (Stage 2)
 4. **MUST** call `spectree__detect_patterns` for relevant pattern types before writing AI instructions (Stage 3)
 5. **MUST** call `spectree__estimate_effort` for each feature before setting complexity/effort fields (Stage 3)
-6. **MUST** write epic descriptions that score >= 80 on the Epic Description Rubric — this is a hard floor that blocks the pipeline regardless of other scores
+6. **MUST** write epic descriptions that score >= 95 on the Epic Description Rubric — this is a hard floor that blocks the pipeline regardless of other scores
 7. **MUST** set structured descriptions for ALL features and ALL tasks — no exceptions
 8. **MUST** verify the execution plan at the end of the pipeline
 9. **MUST** include at least 3 acceptance criteria per feature and 2 per task

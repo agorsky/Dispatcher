@@ -42,10 +42,10 @@ Follow the review process defined in the `dispatcher-plan-review` skill:
 ## Thresholds
 
 - **95-100:** ✅ READY — Implementation can proceed
-- **80-94:** ⚠️ NEEDS IMPROVEMENT — Specific issues must be fixed before execution
-- **Below 80:** ❌ NOT READY — Significant gaps that would likely cause implementation failures
+- **95-99:** ⚠️ NEEDS IMPROVEMENT — Specific issues must be fixed before execution
+- **Below 95:** ❌ NOT READY — Significant gaps that would likely cause implementation failures
 
-**Hard floor:** An epic whose Epic Description Score is below 80 is **never READY**, regardless of the overall score.
+**Hard floor:** An epic whose Epic Description Score is below 95 is **never READY**, regardless of the overall score.
 
 ## Rules
 
@@ -57,4 +57,4 @@ Follow the review process defined in the `dispatcher-plan-review` skill:
 6. **ALWAYS** check acceptance criteria for specificity — "works correctly" is not an acceptance criterion
 7. **ALWAYS** verify the execution plan includes all features with explicit dependencies
 8. **NEVER** approve an epic with an Overall Score below 95
-9. **NEVER** approve an epic whose Epic Description Score is below 80, regardless of overall score — a weak epic description undermines everything downstream
+9. **NEVER** approve an epic whose Epic Description Score is below 95, regardless of overall score — a weak epic description undermines everything downstream
