@@ -362,6 +362,7 @@ export async function getActiveSession(
       epicId: epic.id,
       status: "active",
     },
+    include: { epic: true },
     orderBy: { startedAt: "desc" },
   });
 
@@ -392,6 +393,7 @@ export async function getLastSession(
       epicId: epic.id,
       status: { in: ["completed", "abandoned"] },
     },
+    include: { epic: true },
     orderBy: { endedAt: "desc" },
   });
 
