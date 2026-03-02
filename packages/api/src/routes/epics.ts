@@ -355,21 +355,20 @@ export default function epicsRoutes(
       if (epic.status === "completed") {
         return reply.status(400).send({ error: "Cannot dispatch a completed epic" });
       }
-      // Fire openclaw system event (no-op inside Docker, works on host)
-      const { spawn } = await import("child_process");
-      const OPENCLAW_BIN = "/opt/homebrew/bin/openclaw";
-      const prompt = [
-        `Implementation dispatch requested for epic ${epic.identifier}: "${epic.name}".`,
-        `Epic ID: ${id}.`,
-        `Dispatch Bobby to implement all features and tasks. Start a Dispatcher session, mark tasks In Progress as you go, link related files and commits, mark tasks Done when complete. Open a PR when finished.`,
-      ].join(" ");
+      // Forward to webhook receiver on host (works from Docker via host.docker.internal)
+      const RECEIVER_URL = process.env.WEBHOOK_RECEIVER_URL || "http://host.docker.internal:7890/dispatch";
       try {
-        const child = spawn(OPENCLAW_BIN, ["system", "event", "--text", prompt, "--mode", "now"], {
-          detached: true,
-          stdio: "ignore",
+        const { default: http } = await import("http");
+        const payload = JSON.stringify({ epicId: id, epicIdentifier: epic.identifier, epicName: epic.name });
+        await new Promise<void>((resolve) => {
+          const req = http.request(RECEIVER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) },
+          }, (res) => { res.resume(); resolve(); });
+          req.on("error", () => resolve()); // non-blocking — never fail the response
+          req.write(payload);
+          req.end();
         });
-        child.on("error", () => {}); // swallow ENOENT inside Docker
-        child.unref();
       } catch {
         // Non-blocking
       }
