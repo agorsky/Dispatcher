@@ -128,8 +128,8 @@ export async function transitionTo(
     oldStatus: currentStatus,
     newStatus,
     timestamp: new Date().toISOString(),
-    linkedEntityId,
-    errorMessage,
+    ...(linkedEntityId !== undefined ? { linkedEntityId } : {}),
+    ...(errorMessage !== undefined ? { errorMessage } : {}),
   };
   eventEmitter.emit(EVENT_PIPELINE_STATUS_CHANGED, payload);
 }

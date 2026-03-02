@@ -8,6 +8,7 @@ import type {
 } from "../schemas/epicRequest.js";
 import { emitEntityCreated, emitEntityUpdated } from "../events/index.js";
 import { dispatch } from "./webhookService.js";
+import { transitionTo } from "./pipelineService.js";
 
 // Types for service operations
 export interface ListEpicRequestsOptions {
@@ -375,6 +376,13 @@ export async function updateEpicRequest(
     });
   }
 
+  // If converting to 'converted', advance pipeline to 'planned'
+  if (data.status === "converted") {
+    void transitionTo(id, "planned").catch((err: unknown) => {
+      console.error(`[Pipeline] Failed to transition EpicRequest ${id} to planned:`, err);
+    });
+  }
+
   return updatedRequest;
 }
 
@@ -729,6 +737,11 @@ export async function approveRequest(
     newStatus: "approved",
     changedBy: userId,
     timestamp: new Date().toISOString(),
+  });
+
+  // Transition pipeline status to 'approved' (fire-and-forget)
+  void transitionTo(id, "approved").catch((err: unknown) => {
+    console.error(`[Pipeline] Failed to transition EpicRequest ${id} to approved:`, err);
   });
 
   // Fire-and-forget webhook dispatch

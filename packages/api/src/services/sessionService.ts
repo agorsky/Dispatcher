@@ -10,6 +10,7 @@ import { NotFoundError, ValidationError } from "../errors/index.js";
 import { emitSessionEvent } from "../events/index.js";
 import { SessionEventType } from "@dispatcher/shared";
 import { extractDebrief, storeDebrief } from "./debriefService.js";
+import { transitionTo } from "./pipelineService.js";
 import type {
   StartSessionInput,
   EndSessionInput,
@@ -204,6 +205,17 @@ export async function startSession(
     },
   });
 
+  // Transition pipeline to 'building' if epic request exists for this epic
+  const linkedEpicRequest = await prisma.epicRequest.findFirst({
+    where: { convertedEpicId: epic.id },
+    select: { id: true },
+  });
+  if (linkedEpicRequest) {
+    void transitionTo(linkedEpicRequest.id, "building", newSession.id).catch((err: unknown) => {
+      console.error(`[Pipeline] Failed to transition EpicRequest to building:`, err);
+    });
+  }
+
   // Build lightweight execution plan phases from feature execution metadata
   const executionPlan = buildFeaturePhases(epic.features);
 
@@ -326,6 +338,17 @@ export async function endSession(
         : {}),
     },
   });
+
+  // Transition pipeline to 'done' if epic request exists for this epic
+  const linkedEpicRequestForEnd = await prisma.epicRequest.findFirst({
+    where: { convertedEpicId: epic.id },
+    select: { id: true },
+  });
+  if (linkedEpicRequestForEnd) {
+    void transitionTo(linkedEpicRequestForEnd.id, "done").catch((err: unknown) => {
+      console.error(`[Pipeline] Failed to transition EpicRequest to done:`, err);
+    });
+  }
 
   // Extract and store session debrief as AI note on the epic (ENG-64)
   try {

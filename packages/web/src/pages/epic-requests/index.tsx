@@ -15,6 +15,8 @@ import { Search, ThumbsUp, Flame, ThumbsDown, ChevronDown, User, Users } from 'l
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { EpicRequestStatus, EpicRequestWithReactionCounts } from '@/lib/api/epic-requests';
+import { usePipelineStatus } from '@/hooks/usePipelineStatus';
+import { PipelineIndicator } from '@/components/pipeline/PipelineIndicator';
 
 // Status badge colors based on status
 const statusColors: Record<EpicRequestStatus, string> = {
@@ -45,6 +47,8 @@ function RequestCard({ request, onClick }: RequestCardProps) {
   const likeCount = getReactionCount(request, 'like');
   const fireCount = getReactionCount(request, 'fire');
   const dislikeCount = getReactionCount(request, 'dislike');
+  const pipelineEnabled = request.status === 'approved' || request.status === 'converted';
+  const { pipeline } = usePipelineStatus(request.id, pipelineEnabled);
 
   return (
     <Card
@@ -92,8 +96,8 @@ function RequestCard({ request, onClick }: RequestCardProps) {
         </span>
       </div>
 
-      {/* Reaction counts */}
-      <div className="flex items-center gap-3 text-sm">
+      {/* Reaction counts + Pipeline indicator */}
+      <div className="flex items-center gap-3 text-sm flex-wrap">
         {likeCount > 0 && (
           <div className="flex items-center gap-1 text-muted-foreground">
             <ThumbsUp className="h-4 w-4" />
@@ -112,8 +116,11 @@ function RequestCard({ request, onClick }: RequestCardProps) {
             <span>{dislikeCount}</span>
           </div>
         )}
-        {likeCount === 0 && fireCount === 0 && dislikeCount === 0 && (
+        {likeCount === 0 && fireCount === 0 && dislikeCount === 0 && !pipeline?.pipelineStatus && (
           <span className="text-muted-foreground">No reactions yet</span>
+        )}
+        {pipeline?.pipelineStatus && (
+          <PipelineIndicator pipelineStatus={pipeline.pipelineStatus} className="ml-auto" />
         )}
       </div>
     </Card>
