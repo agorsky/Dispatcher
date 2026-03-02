@@ -8,11 +8,12 @@ import {
   getSession,
   logSessionWork,
   abandonSession,
+  computeSessionProgress,
 } from "../services/sessionService.js";
 import { triggerBarneyAudit } from "../services/epicService.js";
 import {
   getSessionEvents,
-  computeProgressState,
+  computePhaseState,
   derivePhaseFromDatabase,
 } from "../services/sessionEventService.js";
 import { emitSessionEvent } from "../events/index.js";
@@ -112,32 +113,48 @@ export default async function sessionRoutes(
       
       // Query events from service
       const result = await getSessionEvents(epicId, queryOptions);
-      
-      // Compute progress state from all events (not just the paginated result)
-      // For polling clients, we need to compute from the full event history
-      const progressQueryOptions: {
-        sessionId?: string;
-        limit: number;
-      } = {
-        limit: 1000, // Get more events for accurate progress computation
-      };
-      
-      if (sessionId) {
-        progressQueryOptions.sessionId = sessionId;
-      }
-      
-      const allEventsForProgress = await getSessionEvents(epicId, progressQueryOptions);
-      
-      const progressState = computeProgressState(allEventsForProgress.events);
-      
+
+      // Compute phase state from events (phase tracking only)
+      // For phase accuracy we use all events (not just the paginated slice).
+      // We reuse the paginated result's events here since the `since` filter
+      // is not applied for the phase query — the full-history fetch is only
+      // needed when `since` is set by the caller.
+      const phaseEvents =
+        queryOptions.since
+          ? (await getSessionEvents(epicId, {
+              limit: 1000,
+              ...(queryOptions.sessionId ? { sessionId: queryOptions.sessionId } : {}),
+            })).events
+          : result.events;
+
+      let phaseState = computePhaseState(phaseEvents);
+
       // If no phase data from events, derive from database feature statuses
-      if (progressState.totalPhases === null) {
+      if (phaseState.totalPhases === null) {
         const dbPhase = await derivePhaseFromDatabase(epicId);
-        progressState.currentPhase = dbPhase.currentPhase;
-        progressState.lastCompletedPhase = dbPhase.lastCompletedPhase;
-        progressState.totalPhases = dbPhase.totalPhases;
+        phaseState = {
+          currentPhase: dbPhase.currentPhase,
+          lastCompletedPhase: dbPhase.lastCompletedPhase,
+          totalPhases: dbPhase.totalPhases,
+        };
       }
-      
+
+      // Merge phase state with DB-sourced task/feature counts for accurate progress
+      const dbProgress = await computeSessionProgress(epicId);
+      const progressState = {
+        ...phaseState,
+        totalFeatures: dbProgress.totalFeatures,
+        completedFeatures: dbProgress.completedFeatures,
+        totalTasks: dbProgress.totalTasks,
+        completedTasks: dbProgress.completedTasks,
+        progressPercentage:
+          dbProgress.totalTasks > 0
+            ? Math.round((dbProgress.completedTasks / dbProgress.totalTasks) * 100)
+            : dbProgress.totalFeatures > 0
+            ? Math.round((dbProgress.completedFeatures / dbProgress.totalFeatures) * 100)
+            : 0,
+      };
+
       return reply.send({
         data: {
           events: result.events,

@@ -186,6 +186,10 @@ export function SessionSummaryPane({
       </div>
 
       {/* Section 3: Feature/Task Counts */}
+      {/* NOTE: completedFeatures, totalFeatures, completedTasks, totalTasks are
+          DB-sourced (from computeSessionProgress in sessionService.ts) — NOT
+          derived from session events. This ensures accuracy even when event
+          emission is incomplete. See ENG-E218. */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground">
           Completion Status
