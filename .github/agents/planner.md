@@ -260,6 +260,59 @@ The epic request provides the **requirements**. Your job in this stage is to com
 
    The epic `description` field must be a comprehensive reference document that scores >= 95 on the Epic Description Rubric in Stage 4. It must include: Overview, Problem Statement, Goals, Proposed Approach (with architecture details), Scope Definition, Execution Plan, Technical Considerations, Success Criteria, and at least 2 supporting sections. See the Epic Description Score rubric in Stage 4 for full details.
 
+   ---
+
+   ### API Validation Constraints (enforced at the server layer)
+
+   The Dispatcher API enforces these constraints at creation time. Submissions that fail will receive an HTTP **422 Unprocessable Entity** response with a structured `violations` array. The planner MUST produce content that satisfies these constraints or the create/update call will be rejected.
+
+   **Epic description (`description` field):**
+   - **Minimum word count: 500 words.** Descriptions under 500 words are rejected. Count words before submitting — do not estimate.
+   - **Required section headers:** The following keywords must each appear on a heading-formatted line (e.g., `## Overview`, `### Problem Statement`):
+     - `overview` (the word "overview" must appear in a heading)
+     - `problem` (e.g., "Problem Statement", "Problem")
+     - `approach` (e.g., "Proposed Approach", "Approach")
+     - `success` (e.g., "Success Criteria", "Success")
+   - Section detection is case-insensitive. `## OVERVIEW` and `## Overview` both pass. Body text mentioning "overview" does NOT pass — it must be on a heading line.
+
+   **Epic request (`structuredDesc` fields):**
+   - `problemStatement`: minimum 50 words
+   - `proposedSolution`: minimum 50 words
+   - `successMetrics`: must be non-empty
+
+   **422 error format and resubmission:**
+
+   When the API rejects a submission, the response body is:
+   ```json
+   {
+     "error": "Unprocessable Entity",
+     "message": "Epic description does not meet quality requirements.",
+     "violations": [
+       {
+         "check": "word_count",
+         "expected": ">= 500 words",
+         "actual": "143 words",
+         "message": "Epic description must be at least 500 words. Current count: 143."
+       },
+       {
+         "check": "section_missing",
+         "expected": "Section header containing \"Success Criteria\"",
+         "actual": "not found",
+         "message": "Required section is missing: \"Success Criteria\". Add a heading (e.g., \"## Success Criteria\") to the description."
+       }
+     ]
+   }
+   ```
+
+   To resubmit:
+   1. Read each violation in the `violations` array
+   2. Fix the issues in the description (add words, add missing section headers)
+   3. Resubmit. The API will return 201 (created) or 200 (updated) on success.
+
+   **Do NOT bypass the API validation by using the `X-Dispatcher-Test` header.** That header is reserved for automated integration tests only.
+
+   ---
+
    **Epic creation call:**
    ```
    dispatcher__create_epic_complete({
