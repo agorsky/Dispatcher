@@ -78,7 +78,8 @@ test.describe('ENG-95: SSE Reliability', () => {
   });
 
   // ENG-95-3: keep session 30s, assert no error state
-  test('ENG-95-3: session stable for 30s — no error state', { timeout: 60_000 }, async ({ page }) => {
+  test('ENG-95-3: session stable for 30s — no error state', async ({ page }) => {
+    test.setTimeout(60_000);
     await page.goto(`/epics/${epicId}`, { waitUntil: 'domcontentloaded' });
 
     // Wait 30 seconds to test stability

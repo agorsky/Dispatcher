@@ -4,8 +4,8 @@ const BASE_API_URL = process.env.E2E_API_URL || 'http://127.0.0.1:3001';
 const TOKEN = process.env.E2E_TOKEN || 'st_wShsQaYUgKEL9uJosNtLlLx2bqQe0t5tVCN9DxYWIVA';
 const TEAM_ID = '721bd403-ff7e-4a66-824c-f72d57bf9c02';
 
-/** Retry an async operation up to `maxAttempts` times on network errors. */
-async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, delayMs = 500): Promise<T> {
+/** Retry an async operation up to `maxAttempts` times on transient network errors. */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 5, delayMs = 600): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -13,7 +13,12 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, delayMs = 500
     } catch (err: unknown) {
       lastErr = err;
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('ECONNREFUSED') || msg.includes('hang up') || msg.includes('ECONNRESET')) {
+      if (
+        msg.includes('ECONNREFUSED') ||
+        msg.includes('hang up') ||
+        msg.includes('ECONNRESET') ||
+        msg.includes('socket')
+      ) {
         await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
         continue;
       }
@@ -60,7 +65,6 @@ export const test = base.extend<TestFixtures>({
 
   cleanupEpic: async ({ apiContext }, use) => {
     const fn = async (id: string): Promise<void> => {
-      // End any active session first
       try {
         await apiContext.post(`/api/v1/sessions/${id}/end`, {
           data: { summary: 'E2E test cleanup' },
@@ -68,7 +72,7 @@ export const test = base.extend<TestFixtures>({
       } catch {
         // Ignore if no active session
       }
-      await apiContext.delete(`/api/v1/epics/${id}`);
+      await apiContext.delete(`/api/v1/epics/${id}`).catch(() => {});
     };
     await use(fn);
   },
