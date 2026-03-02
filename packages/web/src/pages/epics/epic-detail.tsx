@@ -161,7 +161,7 @@ export function EpicDetailPage() {
       )}
 
       {/* Header - Clean top bar */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b bg-background">
+      <div className="flex items-center gap-3 px-4 py-3 border-b bg-background overflow-hidden">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/epics")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -218,7 +218,7 @@ export function EpicDetailPage() {
               )}
               {/* Creator Attribution */}
               {epic.creator && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-2 pl-2 border-l">
+                <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground ml-2 pl-2 border-l shrink-0">
                   <Avatar className="h-5 w-5">
                     <AvatarFallback className="text-[9px]">
                       {epic.creator.name.charAt(0).toUpperCase()}
@@ -231,7 +231,7 @@ export function EpicDetailPage() {
               )}
               {/* Implementer Attribution */}
               {epic.implementer && epic.implementedDate && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-2 pl-2 border-l">
+                <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground ml-2 pl-2 border-l shrink-0">
                   <Check className="h-3 w-3 text-green-500" />
                   <Avatar className="h-5 w-5">
                     <AvatarFallback className="text-[9px]">
@@ -247,7 +247,7 @@ export function EpicDetailPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {epic.isArchived ? (
             <Button size="sm" variant="outline" onClick={handleUnarchive} disabled={unarchiveEpic.isPending}>
               <ArchiveRestore className="h-4 w-4 mr-1.5" />
