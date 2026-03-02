@@ -511,6 +511,12 @@ model EpicRequest {
   requestedById    String   @map("requested_by_id")
   convertedEpicId  String?  @unique @map("converted_epic_id")
   personalScopeId  String?  @map("personal_scope_id")
+  // Pipeline status tracking (approved | planning | planned | building | done | error)
+  pipelineStatus   String?  @map("pipeline_status")
+  pipelineUpdatedAt DateTime? @map("pipeline_updated_at")
+  linkedSessionId  String?  @map("linked_session_id")
+  prUrl            String?  @map("pr_url")
+  pipelineError    String?  @map("pipeline_error") // Error message if pipelineStatus=error
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

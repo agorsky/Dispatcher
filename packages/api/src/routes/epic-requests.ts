@@ -15,6 +15,11 @@ import {
   rejectRequest,
   transferEpicRequestScope,
 } from "../services/epicRequestService.js";
+import {
+  transitionTo,
+  getCurrentStatus,
+  type PipelineStatus,
+} from "../services/pipelineService.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { requireGlobalAdmin } from "../middleware/globalAdmin.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
@@ -405,6 +410,79 @@ export default function epicRequestsRoutes(
 
       await deleteComment(commentId, request.user!.id, isGlobalAdmin);
       return reply.status(204).send();
+    }
+  );
+
+  /**
+   * GET /api/v1/epic-requests/:id/pipeline
+   * Get the current pipeline status for an epic request
+   * Returns pipelineStatus, pipelineUpdatedAt, convertedEpicId, linkedSessionId, prUrl
+   * Requires authentication
+   */
+  fastify.get<{ Params: EpicRequestIdParams }>(
+    "/:id/pipeline",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const status = await getCurrentStatus(id);
+
+      if (!status) {
+        return reply.status(404).send({
+          error: "Not Found",
+          message: `Epic request with id '${id}' not found`,
+        });
+      }
+
+      return reply.send({ data: status });
+    }
+  );
+
+  /**
+   * PATCH /api/v1/epic-requests/:id/pipeline
+   * Update the pipeline status for an epic request
+   * Validates forward-only transitions via pipelineService state machine
+   * Body: { pipelineStatus, linkedEntityId?, errorMessage? }
+   * Requires authentication
+   */
+  fastify.patch<{
+    Params: EpicRequestIdParams;
+    Body: {
+      pipelineStatus: PipelineStatus;
+      linkedEntityId?: string;
+      errorMessage?: string;
+    };
+  }>(
+    "/:id/pipeline",
+    { preHandler: [authenticate] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { pipelineStatus, linkedEntityId, errorMessage } = request.body;
+
+      if (!pipelineStatus) {
+        return reply.status(400).send({
+          error: "Bad Request",
+          message: "pipelineStatus is required",
+        });
+      }
+
+      const validStatuses: PipelineStatus[] = [
+        "approved",
+        "planning",
+        "planned",
+        "building",
+        "done",
+        "error",
+      ];
+      if (!validStatuses.includes(pipelineStatus)) {
+        return reply.status(400).send({
+          error: "Bad Request",
+          message: `Invalid pipelineStatus '${pipelineStatus}'. Must be one of: ${validStatuses.join(", ")}`,
+        });
+      }
+
+      await transitionTo(id, pipelineStatus, linkedEntityId, errorMessage);
+      const updated = await getCurrentStatus(id);
+      return reply.send({ data: updated });
     }
   );
 }
