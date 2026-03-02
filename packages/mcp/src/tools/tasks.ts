@@ -137,8 +137,10 @@ export function registerTaskTools(server: McpServer): void {
         "identifier based on its parent feature (e.g., if the feature is 'COM-123', the task " +
         "might be 'COM-123-1'). Returns the created task with all metadata including the " +
         "generated identifier.\n\n" +
-        "**REQUIRED FIELDS**: executionOrder and estimatedComplexity must be provided. " +
-        "These fields are mandatory for proper planning and execution tracking.",
+        "**REQUIRED FIELDS**: executionOrder, estimatedComplexity, and scaffoldHints must be provided. " +
+        "These fields are mandatory for proper planning and execution tracking.\n\n" +
+        "scaffoldHints is a JSON string identifying the files Bobby should look at when implementing " +
+        "this task. Generate it using the file tree from `git ls-files` scoped to relevant packages.",
       inputSchema: {
         title: z
           .string()
@@ -208,6 +210,14 @@ export function registerTaskTools(server: McpServer): void {
           .describe(
             "Estimated complexity: 'trivial', 'simple', 'moderate', or 'complex'."
           ),
+        scaffoldHints: z
+          .string()
+          .optional()
+          .describe(
+            "JSON string with scaffold hints from the planner identifying relevant file paths. " +
+            "Required for MCP-originated task creation. Generate using `git ls-files` output. " +
+            'Format: \'{"suggestedFiles":["packages/api/src/routes/tasks.ts"],"testFiles":["packages/api/tests/routes/tasks.test.ts"],"modules":["taskService"],"relatedPatterns":["route-handler"]}\''
+          ),
       },
     },
     async (input) => {
@@ -251,6 +261,7 @@ export function registerTaskTools(server: McpServer): void {
           parallelGroup: input.parallelGroup,
           dependencies: input.dependencies,
           estimatedComplexity: input.estimatedComplexity,
+          scaffoldHints: input.scaffoldHints,
         });
 
         const result = injectReminder('create_task', {
@@ -353,6 +364,13 @@ export function registerTaskTools(server: McpServer): void {
           .describe(
             "Estimated complexity: 'trivial', 'simple', 'moderate', or 'complex'."
           ),
+        scaffoldHints: z
+          .string()
+          .optional()
+          .describe(
+            "JSON string with scaffold hints identifying relevant file paths for implementation. " +
+            'Format: \'{"suggestedFiles":["packages/api/src/routes/tasks.ts"],"testFiles":[],"modules":["taskService"],"relatedPatterns":[]}\''
+          ),
       },
     },
     async (input) => {
@@ -379,6 +397,7 @@ export function registerTaskTools(server: McpServer): void {
           parallelGroup: input.parallelGroup,
           dependencies: input.dependencies,
           estimatedComplexity: input.estimatedComplexity,
+          scaffoldHints: input.scaffoldHints,
         });
 
         return createResponse(task);

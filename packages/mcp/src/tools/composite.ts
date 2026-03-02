@@ -131,6 +131,14 @@ const compositeTaskSchema = z.object({
     .enum(estimatedComplexityValues)
     .optional()
     .describe("Complexity: trivial (<1hr), simple (1-4hr), moderate (1-3d), complex (>3d)"),
+  scaffoldHints: z
+    .string()
+    .optional()
+    .describe(
+      "JSON string with scaffold hints from the planner identifying relevant file paths. " +
+      "Generate using `git ls-files` scoped to relevant packages. " +
+      'Format: \'{"suggestedFiles":["packages/api/src/routes/tasks.ts"],"testFiles":[],"modules":["taskService"],"relatedPatterns":[]}\''
+    ),
   structuredDesc: structuredDescSchema
     .optional()
     .describe("Structured description with summary, aiInstructions, acceptanceCriteria, etc."),
@@ -242,10 +250,11 @@ export function registerCompositeTools(server: McpServer): void {
             tasks: feature.tasks.map((task) => ({
               title: task.title,
               ...(task.executionOrder !== undefined && { executionOrder: task.executionOrder }),
-              ...(task.estimatedComplexity !== undefined && { 
-                estimatedComplexity: task.estimatedComplexity as EstimatedComplexity 
+              ...(task.estimatedComplexity !== undefined && {
+                estimatedComplexity: task.estimatedComplexity as EstimatedComplexity
               }),
-              ...(task.structuredDesc !== undefined && { 
+              ...(task.scaffoldHints !== undefined && { scaffoldHints: task.scaffoldHints }),
+              ...(task.structuredDesc !== undefined && {
                 structuredDesc: task.structuredDesc as CreateEpicCompleteInput["features"][number]["tasks"][number]["structuredDesc"]
               }),
             })),

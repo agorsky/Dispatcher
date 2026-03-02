@@ -852,6 +852,7 @@ export async function createEpicComplete(
           statusId?: string | null;
           executionOrder?: number | null;
           estimatedComplexity?: string | null;
+          scaffoldHints?: string | null;
           structuredDesc?: string | null;
         } = {
           title: taskInput.title.trim(),
@@ -873,6 +874,9 @@ export async function createEpicComplete(
         }
         if (taskInput.estimatedComplexity !== undefined) {
           taskData.estimatedComplexity = taskInput.estimatedComplexity;
+        }
+        if (taskInput.scaffoldHints !== undefined) {
+          taskData.scaffoldHints = taskInput.scaffoldHints;
         }
         if (taskStructuredDesc !== null) {
           taskData.structuredDesc = taskStructuredDesc;

@@ -284,6 +284,8 @@ model Task {
   parallelGroup       String?  @map("parallel_group")
   dependencies        String?  @map("dependencies") // JSON array of task IDs
   estimatedComplexity String?  @map("estimated_complexity") // trivial | simple | moderate | complex
+  // Scaffold hints from planner — suggested files, modules, test counterparts
+  scaffoldHints       String?  @map("scaffold_hints")
 
   // AI session context for cross-session continuity
   aiContext       String?   @map("ai_context")          // Structured context for AI consumption
