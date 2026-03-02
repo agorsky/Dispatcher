@@ -732,10 +732,33 @@ export async function updateTask(
         console.error("Failed to record task update in changelog:", error);
       });
 
-      // ENG-113-2 & 113-4: Auto-emit session event on status change
+      // ENG-113-2 & 113-4 & ENG-163: Auto-emit session event on status change
       if (input.statusId !== undefined && input.statusId !== oldStatusId) {
         const isRemediation = Boolean(taskWithFeature.remediationCase);
         const eventType = isRemediation ? "remediation_complete" : "task_status_change";
+
+        // ENG-163-3: Resolve new status category once — used for both completion
+        // summary payload and the Barney audit trigger (avoids duplicate DB query)
+        const newStatusInfo = await prisma.status.findUnique({
+          where: { id: input.statusId },
+          select: { category: true },
+        });
+
+        // ENG-163-3: For task completion, include progress summary so session
+        // consumers can determine overall feature progress from the event payload
+        let progressSummary: Record<string, number> = {};
+        if (newStatusInfo?.category === "completed") {
+          const [totalTaskCount, completedTaskCount] = await Promise.all([
+            prisma.task.count({ where: { featureId: updatedTask.featureId } }),
+            prisma.task.count({
+              where: {
+                featureId: updatedTask.featureId,
+                status: { category: "completed" },
+              },
+            }),
+          ]);
+          progressSummary = { completedTaskCount, totalTaskCount };
+        }
 
         emitSessionEventToEpic(epicId, {
           type: eventType,
@@ -745,23 +768,18 @@ export async function updateTask(
             title: updatedTask.title,
             newStatusId: input.statusId,
             previousStatusId: oldStatusId ?? null,
+            ...progressSummary,
           },
         }).catch(() => {});
 
         // ENG-117-5: When a remediation task completes, re-trigger Barney audit
-        if (isRemediation) {
-          const doneStatus = await prisma.status.findUnique({
-            where: { id: input.statusId },
-            select: { category: true },
+        if (isRemediation && newStatusInfo?.category === "completed") {
+          const activeSession = await prisma.aiSession.findFirst({
+            where: { epicId, status: "active" },
+            select: { id: true },
           });
-          if (doneStatus?.category === "completed") {
-            const activeSession = await prisma.aiSession.findFirst({
-              where: { epicId, status: "active" },
-              select: { id: true },
-            });
-            if (activeSession) {
-              triggerBarneyAudit(epicId, activeSession.id).catch(() => {});
-            }
+          if (activeSession) {
+            triggerBarneyAudit(epicId, activeSession.id).catch(() => {});
           }
         }
       }

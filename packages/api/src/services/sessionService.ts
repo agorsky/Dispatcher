@@ -461,6 +461,56 @@ export async function getSessionHistory(
 }
 
 /**
+ * Compute live session progress by querying current task and feature state.
+ *
+ * ENG-165: This is the canonical way to get accurate progress data. It reads
+ * directly from the database rather than from session events, so it is always
+ * correct regardless of whether agents called log-work or not.
+ *
+ * @param epicId - The epic UUID to compute progress for
+ * @returns Live counts of features and tasks (total and completed)
+ */
+export async function computeSessionProgress(epicId: string): Promise<{
+  totalFeatures: number;
+  completedFeatures: number;
+  totalTasks: number;
+  completedTasks: number;
+}> {
+  const features = await prisma.feature.findMany({
+    where: { epicId },
+    include: {
+      status: { select: { category: true } },
+      tasks: {
+        include: { status: { select: { category: true } } },
+      },
+    },
+  });
+
+  let completedFeatures = 0;
+  let totalTasks = 0;
+  let completedTasks = 0;
+
+  for (const feature of features) {
+    if (feature.status?.category === "completed") {
+      completedFeatures++;
+    }
+    for (const task of feature.tasks) {
+      totalTasks++;
+      if (task.status?.category === "completed") {
+        completedTasks++;
+      }
+    }
+  }
+
+  return {
+    totalFeatures: features.length,
+    completedFeatures,
+    totalTasks,
+    completedTasks,
+  };
+}
+
+/**
  * Get a specific session by ID
  */
 export async function getSession(sessionId: string): Promise<SessionResponse> {
@@ -473,7 +523,10 @@ export async function getSession(sessionId: string): Promise<SessionResponse> {
     throw new NotFoundError(`Session '${sessionId}' not found`);
   }
 
-  return transformSession(session);
+  // ENG-165: Compute live progress from actual DB state so the session detail
+  // endpoint always reflects true task completion regardless of event history
+  const liveProgress = await computeSessionProgress(session.epicId);
+  return { ...transformSession(session), liveProgress };
 }
 
 // =============================================================================
@@ -716,6 +769,9 @@ export async function emitSessionProgressEvent(
 }
 
 /**
+ * Get the epic ID for a given item (feature or task).
+ * Returns null if the item is not found. Never throws.
+ */
 export async function findEpicIdForItem(
   itemId: string,
   itemType: "feature" | "task"
