@@ -52,6 +52,7 @@ import {
 } from "../schemas/structuredDescription.js";
 import type { CreateEpicCompleteInput } from "../schemas/compositeEpic.js";
 import { runPreflight, recordOverride } from "../services/preflightService.js";
+import { prisma } from "../lib/db.js";
 import { preflightOverrideInputSchema, type PreflightOverrideInput } from "../schemas/preflight.js";
 
 // ---------------------------------------------------------------------------
@@ -405,7 +406,9 @@ export default function epicsRoutes(
       const RECEIVER_URL = process.env.WEBHOOK_RECEIVER_URL || "http://host.docker.internal:7890/dispatch";
       try {
         const { default: http } = await import("http");
-        const payload = JSON.stringify({ epicId: id, epicIdentifier: epic.identifier, epicName: epic.name });
+        // Look up linked epic request so webhook receiver can update pipeline status
+        const epicRequest = await prisma.epicRequest.findFirst({ where: { convertedEpicId: id } });
+        const payload = JSON.stringify({ epicId: id, epicIdentifier: epic.identifier, epicName: epic.name, epicRequestId: epicRequest?.id ?? null });
         await new Promise<void>((resolve) => {
           const req = http.request(RECEIVER_URL, {
             method: "POST",
