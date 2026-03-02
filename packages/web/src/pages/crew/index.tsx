@@ -41,7 +41,7 @@ export function CrewPage() {
         <TabsContent value="sessions">
           <LiveSessionsPanel />
         </TabsContent>
-        <TabsContent value="burndown">
+        <TabsContent value="burndown" className="overflow-hidden min-w-0 w-full">
           <EpicBurndownPanel />
         </TabsContent>
         <TabsContent value="activity">

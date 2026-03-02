@@ -35,7 +35,7 @@ export function EpicBurndownPanel() {
 
   if (epicsLoading) {
     return (
-      <div className="space-y-4 pt-4">
+      <div className="space-y-4 pt-4 min-w-0 w-full overflow-hidden">
         <div className="h-10 w-48 rounded border bg-muted/50 animate-pulse" />
         <div className="h-48 rounded-lg border bg-muted/50 animate-pulse" />
       </div>
@@ -52,12 +52,12 @@ export function EpicBurndownPanel() {
   }
 
   return (
-    <div className="space-y-4 pt-4">
+    <div className="space-y-4 pt-4 min-w-0 w-full overflow-hidden">
       {/* Epic Selector */}
       <select
         value={epicId}
         onChange={(e) => setSelectedEpicId(e.target.value)}
-        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+        className="w-full max-w-full min-w-0 rounded-md border bg-background px-3 py-2 text-sm overflow-hidden text-ellipsis"
       >
         {epics.map((epic) => (
           <option key={epic.id} value={epic.id}>
