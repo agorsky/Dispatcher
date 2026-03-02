@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from '@tanstack/react-query';
+import { sessionsApi } from "@/lib/api/sessions";
 import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic, useCompleteEpic, useReopenEpic, useDispatchEpic } from "@/hooks/queries/use-epics";
 import { useToast } from "@/hooks/useToast";
 import { IssuesList } from "@/components/issues/issues-list";
@@ -43,7 +45,22 @@ export function EpicDetailPage() {
   const reopenEpic = useReopenEpic();
   const dispatchEpic = useDispatchEpic();
   const { toast } = useToast();
-  const [dispatched, setDispatched] = useState(false);
+  // Derive dispatched state from active session — persists across navigation
+  const { data: activeSessionData, refetch: refetchActiveSession } = useQuery({
+    queryKey: ['activeSession', epicId],
+    queryFn: async () => {
+      if (!epicId) return null;
+      try {
+        const result = await sessionsApi.getActive(epicId);
+        return result.data ?? null;
+      } catch {
+        return null; // 404 = no active session
+      }
+    },
+    enabled: !!epicId,
+    refetchInterval: 10000,
+  });
+  const dispatched = !!activeSessionData;
 
   const [isFeatureFormOpen, setIsFeatureFormOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -128,7 +145,7 @@ export function EpicDetailPage() {
   const handleDispatch = async () => {
     try {
       const result = await dispatchEpic.mutateAsync(epic.id);
-      setDispatched(true);
+      void refetchActiveSession();
       toast(result.data.message);
     } catch {
       toast("Dispatch failed — could not trigger implementation.");
