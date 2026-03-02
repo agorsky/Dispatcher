@@ -18,11 +18,11 @@ export function SessionCard({ session }: SessionCardProps) {
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
           <div
             className={cn(
-              'h-2 w-2 rounded-full',
+              'h-2 w-2 rounded-full shrink-0',
               isActive ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'
             )}
           />
@@ -30,7 +30,7 @@ export function SessionCard({ session }: SessionCardProps) {
             {session.epicName ?? 'Unknown Epic'}
           </span>
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap shrink-0">
           {formatElapsed(session.startedAt)}
         </span>
       </div>
