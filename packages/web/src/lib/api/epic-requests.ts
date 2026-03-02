@@ -161,6 +161,32 @@ export interface UpdateEpicRequestInput {
 }
 
 /**
+ * Pipeline status values
+ */
+export type PipelineStatusValue = 'approved' | 'planning' | 'planned' | 'building' | 'done' | 'error';
+
+/**
+ * Pipeline status for an epic request
+ */
+export interface PipelineStatus {
+  pipelineStatus: PipelineStatusValue | null;
+  pipelineUpdatedAt: string | null;
+  convertedEpicId: string | null;
+  linkedSessionId: string | null;
+  prUrl: string | null;
+  pipelineError: string | null;
+}
+
+/**
+ * Input for updating pipeline status
+ */
+export interface UpdatePipelineStatusInput {
+  pipelineStatus: PipelineStatusValue;
+  linkedEntityId?: string;
+  errorMessage?: string;
+}
+
+/**
  * Input for adding a reaction
  */
 export interface AddReactionInput {
@@ -316,4 +342,10 @@ export const epicRequestsApi = {
    */
   transfer: (id: string, input: TransferEpicRequestInput) =>
     api.post<{ data: EpicRequest }>(`/epic-requests/${id}/transfer`, input),
+
+  /**
+   * Get pipeline status for an epic request
+   */
+  getPipelineStatus: (id: string) =>
+    api.get<{ data: PipelineStatus }>(`/epic-requests/${id}/pipeline`),
 };

@@ -15,6 +15,8 @@ import {
   useUpdateEpicRequest,
   useTransferEpicRequestScope,
 } from '@/hooks/queries/use-epic-requests';
+import { usePipelineStatus } from '@/hooks/usePipelineStatus';
+import { PipelineTracker } from '@/components/pipeline/PipelineTracker';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -250,6 +252,10 @@ export function EpicRequestDetailPage() {
   };
 
 
+  // Pipeline status (enabled for approved/converted requests)
+  const pipelineEnabled = request.status === 'approved' || request.status === 'converted';
+  const { pipeline } = usePipelineStatus(requestId, pipelineEnabled);
+
   // Determine scope
   const isPersonalScope = !!request.personalScopeId;
 
@@ -411,6 +417,13 @@ export function EpicRequestDetailPage() {
                 <X className="h-5 w-5 mr-2" />
                 Reject
               </Button>
+            </div>
+          )}
+
+          {/* Pipeline Tracker - shown when approved or converted */}
+          {pipelineEnabled && pipeline && (
+            <div className="border rounded-lg p-4 bg-muted/20">
+              <PipelineTracker pipeline={pipeline} />
             </div>
           )}
 
