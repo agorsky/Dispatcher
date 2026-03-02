@@ -114,13 +114,13 @@ export function EpicsPage() {
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">
-                  {statusFilter === 'completed' ? 'Completed' : statusFilter === 'active' ? 'Active' : showArchived ? 'All' : 'Active'}
+                  {statusFilter === 'completed' ? 'Completed' : statusFilter === 'active' ? 'Active' : 'All'}
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
-                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'all' && !showArchived ? "opacity-100" : "opacity-0"}`} />
+              <DropdownMenuItem onClick={() => { setStatusFilter('active'); setShowArchived(false); }}>
+                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'active' ? "opacity-100" : "opacity-0"}`} />
                 Active epics
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { setStatusFilter('completed'); setShowArchived(false); }}>
@@ -128,7 +128,7 @@ export function EpicsPage() {
                 Completed epics
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { setStatusFilter('all'); setShowArchived(false); }}>
-                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'all' && !showArchived ? "opacity-100" : "opacity-0"}`} />
+                <Check className={`h-4 w-4 mr-2 ${statusFilter === 'all' ? "opacity-100" : "opacity-0"}`} />
                 All statuses
               </DropdownMenuItem>
               <DropdownMenuSeparator />
