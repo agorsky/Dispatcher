@@ -234,63 +234,101 @@ export async function getSessionEvents(
 // =============================================================================
 
 /**
- * Progress state computed from session events
+ * Progress state computed from session events (phase data) merged with
+ * DB-sourced task/feature counts.
+ *
+ * - Phase fields (currentPhase, lastCompletedPhase, totalPhases) are derived
+ *   from session events or DB feature statuses (see derivePhaseFromDatabase).
+ * - Count fields (totalFeatures, completedFeatures, totalTasks, completedTasks,
+ *   progressPercentage) are sourced from the database via computeSessionProgress
+ *   in sessionService.ts — NOT from session events — to ensure accuracy
+ *   regardless of event emission gaps.
  */
 export interface ProgressState {
-  /** Current phase number (1-indexed), null when no phase is active */
+  /** Current phase number (1-indexed), null when no phase is active. Source: events / DB. */
   currentPhase: number | null;
-  /** Last completed phase number, null if no phase completed yet */
+  /** Last completed phase number, null if no phase completed yet. Source: events / DB. */
   lastCompletedPhase: number | null;
-  /** Total number of phases */
+  /** Total number of phases. Source: events / DB. */
   totalPhases: number | null;
-  /** Overall progress percentage (0-100) */
+  /** Overall progress percentage (0-100). Source: DB task counts. */
   progressPercentage: number;
-  /** Total features in the epic */
+  /** Total features in the epic. Source: DB. */
   totalFeatures: number;
-  /** Completed features */
+  /** Completed features. Source: DB. */
   completedFeatures: number;
-  /** Total tasks across all features */
+  /** Total tasks across all features. Source: DB. */
   totalTasks: number;
-  /** Completed tasks */
+  /** Completed tasks. Source: DB. */
   completedTasks: number;
 }
 
 /**
- * Compute progress state from session events
- * 
- * Analyzes event history to derive current progress metrics including phase,
- * feature, and task completion status. Matches the algorithm used by frontend
- * useSessionProgress hook.
- * 
- * @param events - Array of session events in chronological order
- * @returns Computed progress state
+ * Phase-only state computed from session events.
+ * Does NOT include task/feature counts — those should come from the DB
+ * via computeSessionProgress (sessionService.ts).
  */
-export function computeProgressState(events: SessionEvent[]): ProgressState {
-  const progress: ProgressState = {
+export interface PhaseState {
+  currentPhase: number | null;
+  lastCompletedPhase: number | null;
+  totalPhases: number | null;
+}
+
+/**
+ * Compute phase-only state from session events.
+ *
+ * Extracts current/last-completed/total phase information from the event
+ * stream. Task and feature counts are intentionally excluded; callers should
+ * use computeSessionProgress() from sessionService.ts for those counts.
+ *
+ * @param events - Array of session events in chronological order
+ * @returns Phase state derived from events
+ */
+export function computePhaseState(events: SessionEvent[]): PhaseState {
+  const state: PhaseState = {
     currentPhase: null,
     lastCompletedPhase: null,
     totalPhases: null,
-    progressPercentage: 0,
-    totalFeatures: 0,
-    completedFeatures: 0,
-    totalTasks: 0,
-    completedTasks: 0,
   };
-  
-  // Track unique features and tasks
+
+  for (const event of events) {
+    if (isSessionPhaseEvent(event)) {
+      const { payload } = event;
+      state.totalPhases = payload.totalPhases;
+
+      if (event.eventType === SessionEventType.SESSION_PHASE_STARTED) {
+        state.currentPhase = payload.phaseNumber;
+      } else if (event.eventType === SessionEventType.SESSION_PHASE_COMPLETED) {
+        state.lastCompletedPhase = payload.phaseNumber;
+        state.currentPhase = null;
+      }
+    }
+  }
+
+  return state;
+}
+
+/**
+ * @deprecated Use computePhaseState() for phase data and computeSessionProgress()
+ * from sessionService.ts for DB-accurate task/feature counts.
+ *
+ * Kept for backward compatibility. Returns a ProgressState populated only from
+ * events; task/feature counts may be inaccurate if events were not fully emitted.
+ */
+export function computeProgressState(events: SessionEvent[]): ProgressState {
+  const phaseState = computePhaseState(events);
+
+  // Legacy: derive task/feature counts from events (may be inaccurate)
   const allFeatureIds = new Set<string>();
   const featuresCompleted = new Set<string>();
   const featuresWithTaskCount = new Map<string, number>();
   const allTaskIds = new Set<string>();
   const tasksCompleted = new Set<string>();
-  
-  // Epic-level totals from SESSION_STARTED (authoritative if present)
+
   let epicTotalFeatures: number | null = null;
   let epicTotalTasks: number | null = null;
-  
-  // Process events in chronological order
+
   for (const event of events) {
-    // Extract epic-level totals from SESSION_STARTED
     if (isSessionLifecycleEvent(event) && event.eventType === SessionEventType.SESSION_STARTED) {
       const { payload } = event;
       if (typeof payload.totalFeatures === "number") {
@@ -301,73 +339,50 @@ export function computeProgressState(events: SessionEvent[]): ProgressState {
       }
     }
 
-    // Track phase information
-    if (isSessionPhaseEvent(event)) {
-      const { payload } = event;
-      progress.totalPhases = payload.totalPhases;
-
-      // Collect feature IDs from phase events
-      if (Array.isArray(payload.featureIds)) {
-        for (const fid of payload.featureIds) {
-          allFeatureIds.add(fid);
-        }
-      }
-
-      if (event.eventType === SessionEventType.SESSION_PHASE_STARTED) {
-        progress.currentPhase = payload.phaseNumber;
-      } else if (event.eventType === SessionEventType.SESSION_PHASE_COMPLETED) {
-        progress.lastCompletedPhase = payload.phaseNumber;
-        progress.currentPhase = null;
-      }
-    }
-
-    // Track feature progress
     if (isSessionFeatureEvent(event)) {
       const { payload } = event;
       allFeatureIds.add(payload.featureId);
-
-      if (event.eventType === SessionEventType.SESSION_FEATURE_STARTED) {
-        if (payload.taskCount != null) {
-          featuresWithTaskCount.set(payload.featureId, payload.taskCount);
-        }
+      if (event.eventType === SessionEventType.SESSION_FEATURE_STARTED && payload.taskCount != null) {
+        featuresWithTaskCount.set(payload.featureId, payload.taskCount);
       }
-
       if (event.eventType === SessionEventType.SESSION_FEATURE_COMPLETED) {
         featuresCompleted.add(payload.featureId);
       }
     }
 
-    // Track task progress
     if (isSessionTaskEvent(event)) {
       const { payload } = event;
       allTaskIds.add(payload.taskId);
-
       if (event.eventType === SessionEventType.SESSION_TASK_COMPLETED) {
         tasksCompleted.add(payload.taskId);
       }
     }
   }
-  
-  // Use epic-level totals from SESSION_STARTED when available
-  progress.totalFeatures = epicTotalFeatures ?? allFeatureIds.size;
-  progress.completedFeatures = featuresCompleted.size;
-  
-  // Sum task counts from feature events, fall back to unique task IDs seen
+
+  const totalFeatures = epicTotalFeatures ?? allFeatureIds.size;
+  const completedFeatures = featuresCompleted.size;
   const eventBasedTaskCount = Math.max(
     Array.from(featuresWithTaskCount.values()).reduce((sum, n) => sum + n, 0),
     allTaskIds.size
   );
-  progress.totalTasks = epicTotalTasks ?? eventBasedTaskCount;
-  progress.completedTasks = tasksCompleted.size;
-  
-  // Calculate overall progress percentage
-  if (progress.totalTasks > 0) {
-    progress.progressPercentage = Math.round((progress.completedTasks / progress.totalTasks) * 100);
-  } else if (progress.totalFeatures > 0) {
-    progress.progressPercentage = Math.round((progress.completedFeatures / progress.totalFeatures) * 100);
+  const totalTasks = epicTotalTasks ?? eventBasedTaskCount;
+  const completedTasks = tasksCompleted.size;
+
+  let progressPercentage = 0;
+  if (totalTasks > 0) {
+    progressPercentage = Math.round((completedTasks / totalTasks) * 100);
+  } else if (totalFeatures > 0) {
+    progressPercentage = Math.round((completedFeatures / totalFeatures) * 100);
   }
-  
-  return progress;
+
+  return {
+    ...phaseState,
+    progressPercentage,
+    totalFeatures,
+    completedFeatures,
+    totalTasks,
+    completedTasks,
+  };
 }
 
 // =============================================================================
