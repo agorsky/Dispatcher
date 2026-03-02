@@ -12,6 +12,7 @@ import {
   completeEpic,
   reopenEpic,
 } from "../services/epicService.js";
+import { validateEpicDescription } from "../services/descriptionValidator.js";
 import {
   getEpicAiContext,
   setEpicAiContext,
@@ -51,7 +52,26 @@ import {
 } from "../schemas/structuredDescription.js";
 import type { CreateEpicCompleteInput } from "../schemas/compositeEpic.js";
 
+// ---------------------------------------------------------------------------
+// Test bypass header helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if the request carries the X-Dispatcher-Test bypass header
+ * AND the server is NOT running in production mode.
+ *
+ * Allows integration tests to create minimal epics/requests without
+ * triggering description quality validation.
+ */
+function isTestBypassRequest(headers: Record<string, string | string[] | undefined>): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  return headers["x-dispatcher-test"] !== undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Request type definitions
+// ---------------------------------------------------------------------------
+
 interface ListEpicsQuery {
   cursor?: string;
   limit?: string;
@@ -181,6 +201,18 @@ export default function epicsRoutes(
     async (request, reply) => {
       const { name, teamId, description, icon, color, sortOrder } = request.body;
 
+      // Validate description quality unless this is a test bypass request
+      if (description !== undefined && !isTestBypassRequest(request.headers)) {
+        const validation = validateEpicDescription(description);
+        if (!validation.valid) {
+          return reply.status(422).send({
+            error: "Unprocessable Entity",
+            message: "Epic description does not meet quality requirements.",
+            violations: validation.violations,
+          });
+        }
+      }
+
       const input: {
         name: string;
         teamId: string;
@@ -215,6 +247,18 @@ export default function epicsRoutes(
     async (request, reply) => {
       const { id } = request.params;
       const { name, description, icon, color, sortOrder } = request.body;
+
+      // Validate description quality on updates unless this is a test bypass request
+      if (description !== undefined && !isTestBypassRequest(request.headers)) {
+        const validation = validateEpicDescription(description);
+        if (!validation.valid) {
+          return reply.status(422).send({
+            error: "Unprocessable Entity",
+            message: "Epic description does not meet quality requirements.",
+            violations: validation.violations,
+          });
+        }
+      }
 
       const input: {
         name?: string;

@@ -15,6 +15,7 @@ import {
   rejectRequest,
   transferEpicRequestScope,
 } from "../services/epicRequestService.js";
+import { validateEpicRequestStructuredDesc } from "../services/descriptionValidator.js";
 import {
   transitionTo,
   getCurrentStatus,
@@ -38,7 +39,23 @@ import {
   type AddReactionInput,
 } from "../schemas/epicRequest.js";
 
+// ---------------------------------------------------------------------------
+// Test bypass header helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if the request carries the X-Dispatcher-Test bypass header
+ * AND the server is NOT running in production mode.
+ */
+function isTestBypassRequest(headers: Record<string, string | string[] | undefined>): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  return headers["x-dispatcher-test"] !== undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Request type definitions
+// ---------------------------------------------------------------------------
+
 interface ListEpicRequestsQuery {
   cursor?: string;
   limit?: string;
@@ -171,6 +188,18 @@ export default function epicRequestsRoutes(
       preValidation: [validateBody(createEpicRequestSchema)],
     },
     async (request, reply) => {
+      // Validate structuredDesc quality unless this is a test bypass request
+      if (!isTestBypassRequest(request.headers)) {
+        const validation = validateEpicRequestStructuredDesc(request.body.structuredDesc);
+        if (!validation.valid) {
+          return reply.status(422).send({
+            error: "Unprocessable Entity",
+            message: "Epic request does not meet quality requirements.",
+            violations: validation.violations,
+          });
+        }
+      }
+
       const input: CreateEpicRequestInput = {
         title: request.body.title,
       };
