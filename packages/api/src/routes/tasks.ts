@@ -143,6 +143,7 @@ interface CreateTaskBody {
   statusId?: string;
   assigneeId?: string;
   sortOrder?: number;
+  scaffoldHints?: string;
 }
 
 interface UpdateTaskBody {
@@ -157,6 +158,7 @@ interface UpdateTaskBody {
   parallelGroup?: string;
   dependencies?: string[];
   estimatedComplexity?: string;
+  scaffoldHints?: string;
 }
 
 interface BulkUpdateBody {
@@ -282,7 +284,7 @@ export default function tasksRoutes(
     "/",
     { preHandler: [authenticate, requireTeamAccess("featureId"), requireRole("member"), validateMcpTaskCreation] },
     async (request, reply) => {
-      const { title, featureId, description, statusId, assigneeId, sortOrder } =
+      const { title, featureId, description, statusId, assigneeId, sortOrder, scaffoldHints } =
         request.body;
 
       const input: {
@@ -293,6 +295,7 @@ export default function tasksRoutes(
         statusId?: string;
         assigneeId?: string;
         sortOrder?: number;
+        scaffoldHints?: string;
       } = {
         title,
         featureId,
@@ -303,6 +306,7 @@ export default function tasksRoutes(
       if (statusId !== undefined) input.statusId = statusId;
       if (assigneeId !== undefined) input.assigneeId = assigneeId;
       if (sortOrder !== undefined) input.sortOrder = sortOrder;
+      if (scaffoldHints !== undefined) input.scaffoldHints = scaffoldHints;
 
       const task = await createTask(input);
       return reply.status(201).send({ data: task });
@@ -330,6 +334,7 @@ export default function tasksRoutes(
         parallelGroup,
         dependencies,
         estimatedComplexity,
+        scaffoldHints,
       } = request.body;
 
       const input: {
@@ -343,6 +348,7 @@ export default function tasksRoutes(
         parallelGroup?: string;
         dependencies?: string[];
         estimatedComplexity?: string;
+        scaffoldHints?: string;
       } = {};
 
       if (title !== undefined) input.title = title;
@@ -356,6 +362,7 @@ export default function tasksRoutes(
       if (parallelGroup !== undefined) input.parallelGroup = parallelGroup;
       if (dependencies !== undefined) input.dependencies = dependencies;
       if (estimatedComplexity !== undefined) input.estimatedComplexity = estimatedComplexity;
+      if (scaffoldHints !== undefined) input.scaffoldHints = scaffoldHints;
 
       const task = await updateTask(id, input);
       return reply.send({ data: task });

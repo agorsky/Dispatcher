@@ -127,7 +127,12 @@ The epic request provides the **requirements**. Your job in this stage is to com
    ```
    spectree__scan_project_structure({ rootPath: "/path/to/project" })
    ```
-2. Present the epic request data to the user:
+2. **Capture relevant file tree** — Run `git ls-files` scoped to the packages affected by the epic request. Store this file list for use in Stage 2 when generating scaffoldHints per task.
+   ```bash
+   git ls-files packages/api/src packages/mcp/src   # scope to relevant directories
+   ```
+   Scope to relevant directories (e.g., `git ls-files packages/api/src packages/mcp/src`) rather than the entire repo to keep context manageable. The file tree will be referenced when creating tasks to populate scaffoldHints with accurate file paths.
+3. Present the epic request data to the user:
    - Show the title, problem statement, and proposed solution
    - Note any alternatives that were already considered (these are off the table)
    - Note any dependencies or constraints from the request
@@ -158,7 +163,12 @@ The epic request provides the **requirements**. Your job in this stage is to com
    spectree__scan_project_structure({ rootPath: "/path/to/project" })
    ```
    This returns directory tree, package.json deps, prisma models, and recent git history.
-2. Read relevant codebase files using `read` and `search` tools:
+2. **Capture relevant file tree** — Run `git ls-files` scoped to the packages affected by the request. Store this file list for use in Stage 2 when generating scaffoldHints per task.
+   ```bash
+   git ls-files packages/api/src packages/mcp/src   # scope to relevant directories
+   ```
+   Scope to the affected packages rather than the entire repo to keep context manageable. The file tree will be referenced when creating tasks to populate scaffoldHints with accurate file paths.
+3. Read relevant codebase files using `read` and `search` tools:
    - Identify the packages, modules, and files affected by the request
    - Cross-reference with the project structure scan to verify paths exist
    - Find existing patterns, conventions, and abstractions to follow
@@ -208,7 +218,41 @@ The epic request provides the **requirements**. Your job in this stage is to com
    - If a proposed file does not exist and is not marked as new, adjust the path or mark it as a new file
    - Use dependent counts to identify high-impact files that may need extra caution
 
-4. Create the epic atomically using `dispatcher__create_epic_complete`:
+4. **Generate scaffoldHints for each task (Required)**
+
+   ### scaffoldHints Generation (Required)
+
+   For each task, generate a `scaffoldHints` JSON object using the file tree captured in Stage 1. This object provides Bobby with concrete file-path orientation when implementing the task. The MCP `create_task` endpoint will reject tasks without scaffoldHints.
+
+   **scaffoldHints schema:**
+   ```json
+   {
+     "suggestedFiles": ["packages/api/src/routes/tasks.ts"],
+     "testFiles": ["packages/api/tests/routes/tasks.test.ts"],
+     "modules": ["taskService", "mcpValidation"],
+     "relatedPatterns": ["route-handler", "service-layer"]
+   }
+   ```
+
+   - `suggestedFiles` (required): Files Bobby should open first when implementing this task, derived from the `git ls-files` output captured in Stage 1. At least one file must be listed.
+   - `testFiles` (recommended): Test file counterparts for the files being changed.
+   - `modules` (recommended): Module names relevant to this task (service, middleware, etc.).
+   - `relatedPatterns` (optional): Architectural patterns this task follows (e.g., "route-handler", "service-layer").
+
+   Stringify the JSON when passing to the API: `JSON.stringify(scaffoldHints)`.
+
+   **Example — task with scaffoldHints:**
+   ```
+   {
+     title: "Add scaffoldHints field to Prisma Task model",
+     description: "...",
+     executionOrder: 1,
+     estimatedComplexity: "trivial",
+     scaffoldHints: '{"suggestedFiles":["packages/api/prisma/schema.prisma","packages/api/src/services/taskService.ts"],"testFiles":[],"modules":["taskService"],"relatedPatterns":["prisma-model"]}'
+   }
+   ```
+
+5. Create the epic atomically using `dispatcher__create_epic_complete`:
 
    **When `--from-request` is active:**
    - Use the epic request `title` as the basis for the epic name
@@ -329,7 +373,10 @@ The epic request provides the **requirements**. Your job in this stage is to com
          tasks: [
            {
              title: "Task 1.1",
-             description: "Task description"
+             description: "Task description",
+             executionOrder: 1,
+             estimatedComplexity: "simple",
+             scaffoldHints: '{"suggestedFiles":["packages/api/src/routes/example.ts"],"testFiles":["packages/api/tests/routes/example.test.ts"],"modules":["exampleService"],"relatedPatterns":["route-handler"]}'
            }
          ]
        },
@@ -605,6 +652,7 @@ If any threshold fails, fix each issue (call `dispatcher__update_epic` for descr
 10. **MUST** include specific file paths in `filesInvolved` for every task
 11. **MUST** write AI instructions specific enough for a fresh session to implement
 12. **MUST** warn if `filesInvolved` contains paths that don't exist and aren't explicitly marked as new files
-13. **NEVER** create tasks scoped larger than ~125k tokens (complex)
-14. **NEVER** put features that modify the same files in the same parallel group
-15. **NEVER** copy epic request fields verbatim as the epic description — the request is input, the description is a synthesized, enriched output
+13. **MUST** generate scaffoldHints for every task using the file tree captured in Stage 1 — the MCP create_task endpoint will reject tasks without hints. Every task's scaffoldHints must include at least one entry in `suggestedFiles`.
+14. **NEVER** create tasks scoped larger than ~125k tokens (complex)
+15. **NEVER** put features that modify the same files in the same parallel group
+16. **NEVER** copy epic request fields verbatim as the epic description — the request is input, the description is a synthesized, enriched output

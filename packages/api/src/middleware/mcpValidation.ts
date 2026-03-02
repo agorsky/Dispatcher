@@ -143,4 +143,50 @@ export async function validateMcpTaskCreation(
       suggestion: "Use executionOrder: 1, 2, 3, etc. to indicate task execution sequence",
     });
   }
+
+  // Check scaffoldHints
+  const scaffoldHints = body.scaffoldHints;
+  if (scaffoldHints === undefined || scaffoldHints === null) {
+    throw createMcpValidationError({
+      error: "mcp_validation_failed",
+      field: "scaffoldHints",
+      message: "scaffoldHints is required for AI-created tasks",
+      suggestion: 'Add scaffoldHints as a JSON string: \'{"suggestedFiles":["packages/api/src/routes/tasks.ts"],"testFiles":["packages/api/tests/routes/tasks.test.ts"],"modules":["taskService"],"relatedPatterns":["route-handler"]}\'',
+    });
+  }
+
+  if (typeof scaffoldHints !== "string" || scaffoldHints.trim() === "") {
+    throw createMcpValidationError({
+      error: "mcp_validation_failed",
+      field: "scaffoldHints",
+      message: "scaffoldHints must be a non-empty JSON string",
+      suggestion: 'Provide scaffoldHints as a JSON string: \'{"suggestedFiles":["packages/api/src/routes/tasks.ts"],"testFiles":[],"modules":["taskService"],"relatedPatterns":[]}\'',
+    });
+  }
+
+  let parsedHints: Record<string, unknown>;
+  try {
+    parsedHints = JSON.parse(scaffoldHints) as Record<string, unknown>;
+  } catch {
+    throw createMcpValidationError({
+      error: "mcp_validation_failed",
+      field: "scaffoldHints",
+      message: "scaffoldHints must be valid JSON",
+      suggestion: 'Provide scaffoldHints as valid JSON: \'{"suggestedFiles":["path/to/file.ts"],"testFiles":[],"modules":[],"relatedPatterns":[]}\'',
+    });
+  }
+
+  const hasNonEmptyArray = (key: string): boolean => {
+    const val = parsedHints[key];
+    return Array.isArray(val) && val.length > 0;
+  };
+
+  if (!hasNonEmptyArray("suggestedFiles") && !hasNonEmptyArray("testFiles") && !hasNonEmptyArray("modules")) {
+    throw createMcpValidationError({
+      error: "mcp_validation_failed",
+      field: "scaffoldHints",
+      message: "scaffoldHints must contain at least one of: suggestedFiles, testFiles, or modules with non-empty arrays",
+      suggestion: 'Populate at least one array in scaffoldHints: \'{"suggestedFiles":["packages/api/src/routes/tasks.ts"],"testFiles":[],"modules":[],"relatedPatterns":[]}\'',
+    });
+  }
 }

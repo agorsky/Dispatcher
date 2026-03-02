@@ -33,6 +33,7 @@ export interface CreateTaskInput {
   parallelGroup?: string | undefined;
   dependencies?: string[] | undefined;
   estimatedComplexity?: string | undefined;
+  scaffoldHints?: string | undefined;
 }
 
 export interface UpdateTaskInput {
@@ -47,6 +48,7 @@ export interface UpdateTaskInput {
   parallelGroup?: string | undefined;
   dependencies?: string[] | undefined;
   estimatedComplexity?: string | undefined;
+  scaffoldHints?: string | undefined;
 }
 
 export type TaskOrderBy = 'sortOrder' | 'createdAt' | 'updatedAt';
@@ -471,6 +473,7 @@ export async function createTask(input: CreateTaskInput, userId?: string): Promi
         parallelGroup?: string;
         dependencies?: string;
         estimatedComplexity?: string;
+        scaffoldHints?: string;
       } = {
         title: input.title.trim(),
         featureId: input.featureId,
@@ -503,6 +506,9 @@ export async function createTask(input: CreateTaskInput, userId?: string): Promi
       }
       if (input.estimatedComplexity !== undefined) {
         data.estimatedComplexity = input.estimatedComplexity;
+      }
+      if (input.scaffoldHints !== undefined) {
+        data.scaffoldHints = input.scaffoldHints;
       }
 
       const task = await prisma.task.create({ data });
@@ -631,6 +637,7 @@ export async function updateTask(
     parallelGroup?: string;
     dependencies?: string;
     estimatedComplexity?: string;
+    scaffoldHints?: string;
   } = {};
 
   if (input.title !== undefined) {
@@ -663,6 +670,9 @@ export async function updateTask(
   }
   if (input.estimatedComplexity !== undefined) {
     data.estimatedComplexity = input.estimatedComplexity;
+  }
+  if (input.scaffoldHints !== undefined) {
+    data.scaffoldHints = input.scaffoldHints;
   }
 
   // Track old status for event emission

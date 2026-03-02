@@ -20,6 +20,7 @@ The orchestrator provides you with:
 - **Previous AI context** — notes from prior sessions
 - **Code context** — previously linked files
 - **Decisions** — past implementation choices
+- **Scaffold hints** — suggested file paths, test files, and modules from the planner's codebase analysis
 
 Read this context carefully before starting implementation.
 
@@ -79,14 +80,26 @@ dispatcher__manage_description({
 })
 ```
 
-### 3. Implement the Task
+### 3. Review Scaffold Hints
+
+If scaffoldHints are provided in the task context, review the suggested file paths before starting implementation. These hints were generated during planning based on `git ls-files` output and represent the planner's best assessment of which files this task will touch. Use them as your starting point but verify each file exists before modifying it.
+
+The scaffoldHints JSON contains:
+- `suggestedFiles` — the primary files to open and modify
+- `testFiles` — test file counterparts to update
+- `modules` — service/middleware module names relevant to this task
+- `relatedPatterns` — architectural patterns to follow
+
+If no scaffoldHints are present (task created via REST API), proceed with the AI instructions as your primary guide.
+
+### 4. Implement the Task
 
 Follow the AI instructions step by step. Use `read`, `edit`, `search`, and `execute` tools to:
 - Read existing code to understand patterns and conventions
 - Create or modify files as specified
 - Run commands (tests, builds, linters) to verify your work
 
-### 4. Link Modified Files
+### 5. Link Modified Files
 
 For every file you create or modify, call `dispatcher__manage_code_context` with `action='link_file'`:
 ```
@@ -98,7 +111,7 @@ dispatcher__manage_code_context({
 })
 ```
 
-### 5. Log Progress
+### 6. Log Progress
 
 After each significant implementation step, call `dispatcher__manage_progress` with `action='log_progress'`:
 ```
@@ -111,7 +124,7 @@ dispatcher__manage_progress({
 })
 ```
 
-### 6. Log Decisions
+### 7. Log Decisions
 
 When you make implementation choices, record them with `dispatcher__log_decision`:
 ```
@@ -125,7 +138,7 @@ dispatcher__log_decision({
 })
 ```
 
-### 7. Run Validations
+### 8. Run Validations
 
 Before marking the task complete, run all validations:
 ```
@@ -137,7 +150,7 @@ dispatcher__manage_validations({
 
 Review the results. If any validation fails, fix the issue before proceeding.
 
-### 8. Complete the Task
+### 9. Complete the Task
 
 Call `dispatcher__complete_task_with_validation` to atomically validate and mark done:
 ```
@@ -154,6 +167,7 @@ If validation fails, fix the issues and retry.
 Before moving to the next task, verify ALL of these:
 
 - ☐ `dispatcher__manage_progress` (action='start_work') called at the beginning
+- ☐ Scaffold hints reviewed (if provided in task context)
 - ☐ All created/modified files linked via `dispatcher__manage_code_context` (action='link_file')
 - ☐ Progress logged via `dispatcher__manage_progress` (action='log_progress')
 - ☐ Decisions logged via `dispatcher__log_decision` (if any choices were made)

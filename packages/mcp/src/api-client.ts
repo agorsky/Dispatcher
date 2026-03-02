@@ -286,6 +286,7 @@ export interface Task {
   parallelGroup: string | null;
   dependencies: string | null; // JSON array of task IDs
   estimatedComplexity: EstimatedComplexity | null;
+  scaffoldHints: string | null; // JSON string with suggested files, modules, test counterparts
   // Attribution fields
   createdBy: string | null;
   creator?: User | null;
@@ -327,6 +328,7 @@ export interface CreateTaskData {
   parallelGroup?: string | undefined;
   dependencies?: string[] | undefined;
   estimatedComplexity?: EstimatedComplexity | undefined;
+  scaffoldHints?: string | undefined;
 }
 
 export interface UpdateTaskData {
@@ -340,6 +342,7 @@ export interface UpdateTaskData {
   parallelGroup?: string | undefined;
   dependencies?: string[] | undefined;
   estimatedComplexity?: EstimatedComplexity | undefined;
+  scaffoldHints?: string | undefined;
 }
 
 // -----------------------------------------------------------------------------

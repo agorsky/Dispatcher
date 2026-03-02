@@ -40,6 +40,10 @@ export const compositeTaskInputSchema = z.object({
     .enum(estimatedComplexityValues)
     .optional()
     .describe("Estimated complexity: trivial, simple, moderate, or complex"),
+  scaffoldHints: z
+    .string()
+    .optional()
+    .describe("JSON string containing scaffold hints from the planner: suggested files, test files, modules, and related patterns. Example: '{\"suggestedFiles\":[\"packages/api/src/routes/tasks.ts\"],\"testFiles\":[],\"modules\":[\"taskService\"],\"relatedPatterns\":[]}'"),
   structuredDesc: structuredDescriptionSchema
     .optional()
     .describe("Structured description with summary, acceptanceCriteria, aiInstructions, etc."),

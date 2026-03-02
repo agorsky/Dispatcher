@@ -363,6 +363,18 @@ When spawning a feature-worker sub-agent, build a prompt using this template. Fi
 ## Code Context
 {from dispatcher__manage_code_context with action='get_context', or "No code context yet" if empty}
 
+## Scaffold Hints
+{{#if task.scaffoldHints}}
+The planner identified these files as relevant to this task based on codebase analysis:
+- **Suggested files:** {scaffoldHints.suggestedFiles — parsed from task.scaffoldHints JSON string}
+- **Test files:** {scaffoldHints.testFiles}
+- **Modules:** {scaffoldHints.modules}
+- **Patterns:** {scaffoldHints.relatedPatterns}
+
+Use these as your starting point. Verify each file exists before modifying it.
+{{/if}}
+Note: Parse scaffoldHints from the JSON string in the task data before injecting. If task.scaffoldHints is null (REST-created task), omit this section entirely.
+
 ## Decisions Made So Far
 {from dispatcher__get_decision_context, or "No decisions yet" if empty}
 
