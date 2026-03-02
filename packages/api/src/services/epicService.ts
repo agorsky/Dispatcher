@@ -1236,6 +1236,7 @@ export async function triggerBarneyAudit(
       detached: true,
       stdio: "ignore",
     });
+    child.on("error", () => {}); // swallow ENOENT when running inside Docker
     child.unref();
   } catch {
     // Non-blocking — never propagate errors
@@ -1314,6 +1315,7 @@ export async function fireComplianceClearNotification(epicId: string): Promise<v
       detached: true,
       stdio: "ignore",
     });
+    child.on("error", () => {}); // swallow ENOENT inside Docker
     child.unref();
   } catch {
     // Non-blocking
