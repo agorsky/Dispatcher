@@ -339,6 +339,46 @@ export default function epicsRoutes(
   );
 
   /**
+   * POST /api/v1/epics/:id/dispatch
+   * Trigger implementation dispatch — fires openclaw system event to kick off Bobby
+   * Requires authentication, team membership, and member+ role
+   */
+  fastify.post<{ Params: EpicIdParams }>(
+    "/:id/dispatch",
+    { preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("member")] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const epic = await getEpicById(id);
+      if (!epic) {
+        return reply.status(404).send({ error: "Epic not found" });
+      }
+      if (epic.status === "completed") {
+        return reply.status(400).send({ error: "Cannot dispatch a completed epic" });
+      }
+      // Fire openclaw system event (no-op inside Docker, works on host)
+      const { spawn } = await import("child_process");
+      const OPENCLAW_BIN = "/opt/homebrew/bin/openclaw";
+      const prompt = [
+        `Implementation dispatch requested for epic ${epic.identifier}: "${epic.name}".`,
+        `Epic ID: ${id}.`,
+        `Dispatch Bobby to implement all features and tasks. Start a Dispatcher session, mark tasks In Progress as you go, link related files and commits, mark tasks Done when complete. Open a PR when finished.`,
+      ].join(" ");
+      try {
+        const child = spawn(OPENCLAW_BIN, ["system", "event", "--text", prompt, "--mode", "now"], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.on("error", () => {}); // swallow ENOENT inside Docker
+        child.unref();
+      } catch {
+        // Non-blocking
+      }
+      return reply.send({ data: { epicId: id, dispatched: true, message: `Dispatch triggered for ${epic.identifier}` } });
+    }
+  );
+
+
+  /**
    * PUT /api/v1/epics/:id/reorder
    * Reorder an epic within its team
    * Requires authentication, team membership, and member+ role

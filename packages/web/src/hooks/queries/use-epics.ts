@@ -148,3 +148,9 @@ export function useEpicsCount() {
     },
   });
 }
+
+export function useDispatchEpic() {
+  return useMutation({
+    mutationFn: (id: string) => epicsApi.dispatch(id),
+  });
+}

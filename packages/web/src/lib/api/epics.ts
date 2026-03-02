@@ -65,4 +65,5 @@ export const epicsApi = {
   complete: (id: string) => api.patch<{ data: Epic }>(`/epics/${id}/complete`, {}),
 
   reopen: (id: string) => api.patch<{ data: Epic }>(`/epics/${id}/reopen`, {}),
+  dispatch: (id: string) => api.post<{ data: { epicId: string; dispatched: boolean; message: string } }>(`/epics/${id}/dispatch`, {}),
 };

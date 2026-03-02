@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic, useCompleteEpic, useReopenEpic } from "@/hooks/queries/use-epics";
+import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic, useCompleteEpic, useReopenEpic, useDispatchEpic } from "@/hooks/queries/use-epics";
+import { useToast } from "@/hooks/useToast";
 import { IssuesList } from "@/components/issues/issues-list";
 import { FeatureForm } from "@/components/features/feature-form";
 import { MarkdownRenderer } from "@/components/common/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Plus, Trash2, Check, X, MoreHorizontal, ChevronDown, ChevronRight, Archive, ArchiveRestore, FileText, ExternalLink, AlertTriangle, Clock, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Rocket, Plus, Trash2, Check, X, MoreHorizontal, ChevronDown, ChevronRight, Archive, ArchiveRestore, FileText, ExternalLink, AlertTriangle, Clock, CheckCircle2, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { PlanView } from "@/components/execution-plan";
 import { DetailTabs, TabsContent } from "@/components/detail-tabs/detail-tabs";
@@ -40,6 +41,8 @@ export function EpicDetailPage() {
   const unarchiveEpic = useUnarchiveEpic();
   const completeEpic = useCompleteEpic();
   const reopenEpic = useReopenEpic();
+  const dispatchEpic = useDispatchEpic();
+  const { toast } = useToast();
 
   const [isFeatureFormOpen, setIsFeatureFormOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -119,6 +122,15 @@ export function EpicDetailPage() {
 
   const handleReopen = async () => {
     await reopenEpic.mutateAsync(epic.id);
+  };
+
+  const handleDispatch = async () => {
+    try {
+      const result = await dispatchEpic.mutateAsync(epic.id);
+      toast(result.data.message);
+    } catch {
+      toast("Dispatch failed — could not trigger implementation.");
+    }
   };
 
   const isCompleted = epic.status === 'completed';
@@ -239,10 +251,15 @@ export function EpicDetailPage() {
               <ArchiveRestore className="h-4 w-4 mr-1.5" />
               {unarchiveEpic.isPending ? "Restoring..." : "Restore Epic"}
             </Button>
-          ) : !isCompleted && import.meta.env.VITE_SHOW_CREATION_FORMS === 'true' ? (
-            <Button size="sm" onClick={() => setIsFeatureFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Feature
+          ) : !isCompleted ? (
+            <Button
+              size="sm"
+              onClick={() => void handleDispatch()}
+              disabled={dispatchEpic.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Rocket className="h-4 w-4 mr-1.5" />
+              {dispatchEpic.isPending ? "Dispatching..." : "Start Implementation"}
             </Button>
           ) : null}
           
