@@ -58,3 +58,28 @@ Follow the review process defined in the `dispatcher-plan-review` skill:
 7. **ALWAYS** verify the execution plan includes all features with explicit dependencies
 8. **NEVER** approve an epic with an Overall Score below 95
 9. **NEVER** approve an epic whose Epic Description Score is below 95, regardless of overall score — a weak epic description undermines everything downstream
+10. **ALWAYS** verify the epic description will pass API validation gates before marking READY — see API Validation Constraints below
+
+## API Validation Constraints
+
+The Dispatcher API enforces these constraints server-side when an epic is created or updated. If the plan-reviewer finds violations, the epic is **NOT READY** regardless of other scores — the builder will receive a 422 error and be blocked.
+
+**Check these explicitly during epic description evaluation:**
+
+| Check | Requirement | Failure |
+|-------|-------------|---------|
+| Word count | >= 500 words | `word_count` violation |
+| Section: Overview | Heading line containing "overview" | `section_missing` violation |
+| Section: Problem | Heading line containing "problem" | `section_missing` violation |
+| Section: Approach | Heading line containing "approach" | `section_missing` violation |
+| Section: Success | Heading line containing "success" | `section_missing` violation |
+
+**For epic requests, check `structuredDesc`:**
+
+| Field | Requirement |
+|-------|-------------|
+| `problemStatement` | >= 50 words |
+| `proposedSolution` | >= 50 words |
+| `successMetrics` | non-empty |
+
+**When violations are found:** Report them as a distinct failure category in the review report under "API Validation Failures". List each `check`, `expected`, and `actual` exactly as they would appear in the API 422 response. These failures MUST be fixed before the plan is marked READY.
