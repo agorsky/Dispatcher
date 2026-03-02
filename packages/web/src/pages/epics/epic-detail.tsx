@@ -43,6 +43,7 @@ export function EpicDetailPage() {
   const reopenEpic = useReopenEpic();
   const dispatchEpic = useDispatchEpic();
   const { toast } = useToast();
+  const [dispatched, setDispatched] = useState(false);
 
   const [isFeatureFormOpen, setIsFeatureFormOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -127,6 +128,7 @@ export function EpicDetailPage() {
   const handleDispatch = async () => {
     try {
       const result = await dispatchEpic.mutateAsync(epic.id);
+      setDispatched(true);
       toast(result.data.message);
     } catch {
       toast("Dispatch failed — could not trigger implementation.");
@@ -255,11 +257,11 @@ export function EpicDetailPage() {
             <Button
               size="sm"
               onClick={() => void handleDispatch()}
-              disabled={dispatchEpic.isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={dispatchEpic.isPending || dispatched}
+              className={dispatched ? "bg-blue-400 cursor-not-allowed text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
             >
               <Rocket className="h-4 w-4 mr-1.5" />
-              {dispatchEpic.isPending ? "Dispatching..." : "Start Implementation"}
+              {dispatchEpic.isPending ? "Dispatching..." : dispatched ? "Implementing..." : "Start Implementation"}
             </Button>
           ) : null}
           
