@@ -728,8 +728,30 @@ export async function updateFeature(
     });
   }
 
-  // ENG-113-3: Auto-emit session event on feature status change + check epic completion
+  // ENG-113-3 & ENG-164: Auto-emit session event on feature status change + check epic completion
   if (input.statusId !== undefined && input.statusId !== oldStatusId) {
+    // ENG-164-2: Resolve new status category to determine if this is a completion event.
+    // For feature completion, include task progress summary so session consumers
+    // can see how many tasks were completed without a separate DB query.
+    const newStatusInfo = await prisma.status.findUnique({
+      where: { id: input.statusId },
+      select: { category: true },
+    });
+
+    let progressSummary: Record<string, number> = {};
+    if (newStatusInfo?.category === "completed") {
+      const [totalTaskCount, completedTaskCount] = await Promise.all([
+        prisma.task.count({ where: { featureId: id } }),
+        prisma.task.count({
+          where: {
+            featureId: id,
+            status: { category: "completed" },
+          },
+        }),
+      ]);
+      progressSummary = { completedTaskCount, totalTaskCount };
+    }
+
     emitSessionEventToEpic(updatedFeature.epicId, {
       type: "feature_status_change",
       payload: {
@@ -738,6 +760,7 @@ export async function updateFeature(
         title: updatedFeature.title,
         newStatusId: input.statusId,
         previousStatusId: oldStatusId ?? null,
+        ...progressSummary,
       },
     }).catch(() => {});
     checkEpicCompletion(updatedFeature.epicId).catch((error) => {
