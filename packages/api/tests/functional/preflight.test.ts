@@ -27,14 +27,13 @@ beforeAll(async () => {
   const teamsBody = await teamsRes.json();
   TEAM_ID = teamsBody.data[0].id;
 
-  // Create a test epic (use test bypass to avoid description quality gate)
+  // Create a test epic without a description (skip description quality gate)
   const epicRes = await fetch(`${API}/api/v1/epics`, {
     method: "POST",
     headers: TEST_BYPASS,
     body: JSON.stringify({
       name: `Preflight Test Epic ${ts()}`,
       teamId: TEAM_ID,
-      description: "Short test description",
     }),
   });
   const epicBody = await epicRes.json();

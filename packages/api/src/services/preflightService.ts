@@ -154,11 +154,6 @@ export async function runPreflight(epicId: string): Promise<PreflightResult> {
             select: { identifier: true, structuredDesc: true },
           },
         },
-        select: {
-          identifier: true,
-          structuredDesc: true,
-          tasks: true,
-        },
       },
     },
   });
