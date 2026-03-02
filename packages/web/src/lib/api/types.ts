@@ -126,6 +126,49 @@ export interface Task {
   updatedAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// Pre-flight types (ENG-E217)
+// ---------------------------------------------------------------------------
+
+export interface PreflightCheckItem {
+  identifier: string;
+  issue: string;
+}
+
+export interface PreflightCheckResult {
+  checkName: string;
+  passed: boolean;
+  details: string;
+  items?: PreflightCheckItem[];
+}
+
+export interface PreflightResult {
+  epicId: string;
+  passed: boolean;
+  score: number;
+  checks: PreflightCheckResult[];
+  checkedAt: string;
+}
+
+export interface PreflightOverride {
+  id: string;
+  epicId: string;
+  userId: string;
+  reason: string;
+  overriddenIssues: string; // JSON array string
+  createdAt: string;
+  epic?: {
+    id: string;
+    name: string;
+    identifier?: string | null;
+  } | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   nextCursor?: string;

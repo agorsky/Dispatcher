@@ -3,6 +3,8 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from '@tanstack/react-query';
 import { sessionsApi } from "@/lib/api/sessions";
 import { useEpic, useUpdateEpic, useDeleteEpic, useArchiveEpic, useUnarchiveEpic, useCompleteEpic, useReopenEpic, useDispatchEpic } from "@/hooks/queries/use-epics";
+import { usePreflightCheck, useRecordOverride } from "@/hooks/queries/use-preflight";
+import { PreflightBadge, PreflightDetailPanel, PreflightOverrideDialog } from "@/components/preflight";
 import { useToast } from "@/hooks/useToast";
 import { IssuesList } from "@/components/issues/issues-list";
 import { FeatureForm } from "@/components/features/feature-form";
@@ -77,6 +79,12 @@ export function EpicDetailPage() {
   });
   const dispatched = !!activeSessionData || optimisticDispatched;
   const hasRunBefore = !!lastSessionData;
+
+  // Pre-flight gate state
+  const { data: preflightData } = usePreflightCheck(epicId ?? "");
+  const recordOverride = useRecordOverride();
+  const [showPreflightPanel, setShowPreflightPanel] = useState(false);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
 
   const [isFeatureFormOpen, setIsFeatureFormOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -158,7 +166,7 @@ export function EpicDetailPage() {
     await reopenEpic.mutateAsync(epic.id);
   };
 
-  const handleDispatch = async () => {
+  const doDispatch = async () => {
     try {
       const result = await dispatchEpic.mutateAsync(epic.id);
       setOptimisticDispatched(true);
@@ -168,6 +176,30 @@ export function EpicDetailPage() {
       toast(result.data.message);
     } catch {
       toast("Dispatch failed — could not trigger implementation.");
+    }
+  };
+
+  const handleDispatch = async () => {
+    // If preflight data exists and failed, show the gate panel instead of dispatching
+    if (preflightData && !preflightData.passed) {
+      setShowPreflightPanel(true);
+      return;
+    }
+    await doDispatch();
+  };
+
+  const handleOverrideConfirm = async (reason: string) => {
+    if (!epicId || !preflightData) return;
+    const failedCheckNames = preflightData.checks
+      .filter((c) => !c.passed)
+      .map((c) => c.checkName);
+    try {
+      await recordOverride.mutateAsync({ epicId, reason, issues: failedCheckNames });
+      setShowOverrideDialog(false);
+      setShowPreflightPanel(false);
+      await doDispatch();
+    } catch {
+      toast("Override failed — could not record the override.");
     }
   };
 
@@ -290,15 +322,23 @@ export function EpicDetailPage() {
               {unarchiveEpic.isPending ? "Restoring..." : "Restore Epic"}
             </Button>
           ) : !isCompleted ? (
-            <Button
-              size="sm"
-              onClick={() => void handleDispatch()}
-              disabled={dispatchEpic.isPending || dispatched}
-              className={dispatched ? "bg-blue-400 cursor-not-allowed text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
-            >
-              <Rocket className="h-4 w-4 mr-1.5" />
-              {dispatchEpic.isPending ? "Dispatching..." : dispatched ? "Implementing..." : hasRunBefore ? "Resume Implementation" : "Start Implementation"}
-            </Button>
+            <div className="relative">
+              <Button
+                size="sm"
+                onClick={() => void handleDispatch()}
+                disabled={dispatchEpic.isPending || dispatched}
+                className={dispatched ? "bg-blue-400 cursor-not-allowed text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
+              >
+                <Rocket className="h-4 w-4 mr-1.5" />
+                {dispatchEpic.isPending ? "Dispatching..." : dispatched ? "Implementing..." : hasRunBefore ? "Resume Implementation" : "Start Implementation"}
+              </Button>
+              {preflightData && !preflightData.passed && (
+                <PreflightBadge
+                  issueCount={preflightData.checks.filter((c) => !c.passed).length}
+                  onClick={() => setShowPreflightPanel((v) => !v)}
+                />
+              )}
+            </div>
           ) : null}
           
           <DropdownMenu>
@@ -518,6 +558,29 @@ export function EpicDetailPage() {
           defaultEpicId={epicId}
         />
       )}
+
+      {/* Pre-flight detail panel */}
+      {showPreflightPanel && preflightData && !preflightData.passed && (
+        <div className="px-4 pb-2">
+          <PreflightDetailPanel
+            checks={preflightData.checks}
+            onOverride={() => {
+              setShowPreflightPanel(false);
+              setShowOverrideDialog(true);
+            }}
+            onDismiss={() => setShowPreflightPanel(false)}
+          />
+        </div>
+      )}
+
+      {/* Pre-flight override dialog */}
+      <PreflightOverrideDialog
+        open={showOverrideDialog}
+        issues={preflightData?.checks.filter((c) => !c.passed).map((c) => c.checkName) ?? []}
+        isLoading={recordOverride.isPending}
+        onConfirm={(reason) => void handleOverrideConfirm(reason)}
+        onCancel={() => setShowOverrideDialog(false)}
+      />
 
       {/* Delete confirmation dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -51,6 +51,8 @@ import {
   type AddExternalLinkInput,
 } from "../schemas/structuredDescription.js";
 import type { CreateEpicCompleteInput } from "../schemas/compositeEpic.js";
+import { runPreflight, recordOverride } from "../services/preflightService.js";
+import { preflightOverrideInputSchema, type PreflightOverrideInput } from "../schemas/preflight.js";
 
 // ---------------------------------------------------------------------------
 // Test bypass header helper
@@ -534,6 +536,68 @@ export default function epicsRoutes(
   // ===========================================================================
   // AI Context Routes
   // ===========================================================================
+
+  // ===========================================================================
+  // Pre-Flight Routes (ENG-E217)
+  // ===========================================================================
+
+  /**
+   * GET /api/v1/epics/:id/preflight
+   * Run pre-flight checks on an epic and return the result
+   * Requires authentication and team membership (guest+)
+   */
+  fastify.get<{ Params: EpicIdParams }>(
+    "/:id/preflight",
+    { preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("guest")] },
+    async (request, reply) => {
+      const { id } = request.params;
+      try {
+        const result = await runPreflight(id);
+        return reply.send({ data: result });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("not found")) {
+          return reply.status(404).send({ error: "Not Found", message });
+        }
+        throw err;
+      }
+    }
+  );
+
+  /**
+   * POST /api/v1/epics/:id/preflight-override
+   * Record a pre-flight override with a reason (member+ only)
+   */
+  fastify.post<{ Params: EpicIdParams; Body: PreflightOverrideInput }>(
+    "/:id/preflight-override",
+    {
+      preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("member")],
+      preValidation: [validateBody(preflightOverrideInputSchema)],
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { reason, issues } = request.body;
+
+      // Verify epic exists
+      const epic = await getEpicById(id);
+      if (!epic) {
+        return reply.status(404).send({
+          error: "Not Found",
+          message: `Epic with id '${id}' not found`,
+        });
+      }
+
+      const override = await recordOverride(id, request.user!.id, reason, issues);
+      return reply.status(201).send({ data: override });
+    }
+  );
+
+  /**
+   * GET /api/v1/preflight-overrides
+   * List pre-flight overrides with pagination (registered on this plugin at root level)
+   * NOTE: This route is registered on the parent app at /api/v1/preflight-overrides
+   * Requires authentication
+   */
 
   /**
    * GET /api/v1/epics/:id/ai-context

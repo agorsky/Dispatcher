@@ -67,6 +67,7 @@ model User {
   epicRequests     EpicRequest[]
   epicRequestReactions EpicRequestReaction[]
   epicRequestComments  EpicRequestComment[]
+  preflightOverrides   PreflightOverride[]
   
   // User tracking relations
   createdEpics     Epic[]       @relation("EpicCreatedBy")
@@ -157,6 +158,7 @@ model Epic {
   sessionEvents SessionEvent[]
   decisions     Decision[]
   convertedFromRequests EpicRequest[]
+  preflightOverrides    PreflightOverride[]
 
   @@index([teamId])
   @@index([teamId, sortOrder])
@@ -765,6 +767,27 @@ model Pattern {
   @@index([category])
   @@index([name])
   @@map("patterns")
+}
+
+// =============================================================================
+// PreflightOverride Model (ENG-E217)
+// Records when a user overrides a failed pre-flight check to proceed with dispatch
+// =============================================================================
+
+model PreflightOverride {
+  id               String   @id @default(uuid())
+  epicId           String   @map("epic_id")
+  userId           String   @map("user_id")
+  reason           String   // Justification text (required, min 10 chars)
+  overriddenIssues String   @map("overridden_issues") // JSON array of issue strings
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  epic Epic @relation(fields: [epicId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([epicId])
+  @@index([userId])
+  @@map("preflight_overrides")
 }
 
 model InstalledSkillPack {

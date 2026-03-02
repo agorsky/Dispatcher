@@ -38,6 +38,7 @@ import settingsRoutes from "./routes/settings.js";
 import agentScoresRoutes from "./routes/agent-scores.js";
 import patternsRoutes from "./routes/patterns.js";
 import briefingsRoutes from "./routes/briefings.js";
+import preflightOverridesRoutes from "./routes/preflight-overrides.js";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -104,6 +105,7 @@ async function main(): Promise<void> {
   await fastify.register(agentScoresRoutes, { prefix: "/api/v1/agent-scores" });
   await fastify.register(patternsRoutes, { prefix: "/api/v1/patterns" });
   await fastify.register(briefingsRoutes, { prefix: "/api/v1/epics" });
+  await fastify.register(preflightOverridesRoutes, { prefix: "/api/v1/preflight-overrides" });
 
   // Graceful shutdown - disconnect Prisma
   fastify.addHook("onClose", async () => {
