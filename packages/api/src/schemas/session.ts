@@ -98,6 +98,18 @@ export const sessionResponseSchema = z.object({
   contextBlob: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  /**
+   * Live progress computed from actual database task/feature state.
+   * Only populated by GET /sessions/by-id/:id (session detail endpoint).
+   * Always reflects current DB state — not dependent on session events.
+   * ENG-165
+   */
+  liveProgress: z.object({
+    totalFeatures: z.number(),
+    completedFeatures: z.number(),
+    totalTasks: z.number(),
+    completedTasks: z.number(),
+  }).optional(),
 });
 
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
