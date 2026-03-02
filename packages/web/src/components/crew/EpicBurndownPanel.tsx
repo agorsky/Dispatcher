@@ -9,9 +9,19 @@ export function EpicBurndownPanel() {
   const { data: epicsData, isLoading: epicsLoading } = useEpics();
   const epics = epicsData?.pages.flatMap((p) => p.data) ?? [];
 
+  // Only show epics that are active or completed (not just planned/backlog)
+  const visibleEpics = epics.filter(
+    (e) => e.status === 'active' || e.status === 'completed'
+  );
+
+  // Default to active epic first, then most recently updated completed epic
+  const defaultEpic =
+    visibleEpics.find((e) => e.status === 'active') ??
+    visibleEpics[0];
+
   const [selectedEpicId, setSelectedEpicId] = useState<string>('');
 
-  const epicId = selectedEpicId || epics[0]?.id || '';
+  const epicId = selectedEpicId || defaultEpic?.id || '';
 
   const { data: featuresData, isLoading: featuresLoading } = useFeatures(
     epicId ? { epicId } : {}
@@ -42,11 +52,11 @@ export function EpicBurndownPanel() {
     );
   }
 
-  if (epics.length === 0) {
+  if (visibleEpics.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <TrendingDown className="h-10 w-10 text-muted-foreground/50 mb-3" />
-        <p className="text-sm text-muted-foreground">No epics found</p>
+        <p className="text-sm text-muted-foreground">No active or completed epics</p>
       </div>
     );
   }
@@ -59,9 +69,9 @@ export function EpicBurndownPanel() {
         onChange={(e) => setSelectedEpicId(e.target.value)}
         className="w-full max-w-full min-w-0 rounded-md border bg-background px-3 py-2 text-sm overflow-hidden text-ellipsis"
       >
-        {epics.map((epic) => (
+        {visibleEpics.map((epic) => (
           <option key={epic.id} value={epic.id}>
-            {epic.name}
+            {epic.name}{epic.status === 'active' ? ' 🔵' : ''}
           </option>
         ))}
       </select>
