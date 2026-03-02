@@ -45,7 +45,7 @@ function groupEpicsByTeam(epics: Epic[]): Map<string, { team: Epic['team']; epic
 export function EpicsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('active');
   
   // Initialize scope from localStorage with 'my' as default for first-time users
   const [scope, setScope] = useState<ScopeMode>(() => {
