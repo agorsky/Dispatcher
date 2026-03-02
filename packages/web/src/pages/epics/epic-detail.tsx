@@ -62,7 +62,21 @@ export function EpicDetailPage() {
     enabled: !!epicId,
     refetchInterval: 10000,
   });
+  const { data: lastSessionData } = useQuery({
+    queryKey: ['lastSession', epicId],
+    queryFn: async () => {
+      if (!epicId) return null;
+      try {
+        const result = await sessionsApi.getLast(epicId);
+        return result.data ?? null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!epicId,
+  });
   const dispatched = !!activeSessionData || optimisticDispatched;
+  const hasRunBefore = !!lastSessionData;
 
   const [isFeatureFormOpen, setIsFeatureFormOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -283,7 +297,7 @@ export function EpicDetailPage() {
               className={dispatched ? "bg-blue-400 cursor-not-allowed text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
             >
               <Rocket className="h-4 w-4 mr-1.5" />
-              {dispatchEpic.isPending ? "Dispatching..." : dispatched ? "Implementing..." : "Start Implementation"}
+              {dispatchEpic.isPending ? "Dispatching..." : dispatched ? "Implementing..." : hasRunBefore ? "Resume Implementation" : "Start Implementation"}
             </Button>
           ) : null}
           
