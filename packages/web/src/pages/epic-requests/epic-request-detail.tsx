@@ -81,6 +81,10 @@ export function EpicRequestDetailPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
+  // Pipeline status hook — must be called before any early returns (Rules of Hooks)
+  const pipelineEnabled = request?.status === 'approved' || request?.status === 'converted';
+  const { pipeline } = usePipelineStatus(requestId ?? '', pipelineEnabled);
+
   if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
@@ -251,10 +255,6 @@ export function EpicRequestDetailPage() {
     }
   };
 
-
-  // Pipeline status (enabled for approved/converted requests)
-  const pipelineEnabled = request.status === 'approved' || request.status === 'converted';
-  const { pipeline } = usePipelineStatus(requestId, pipelineEnabled);
 
   // Determine scope
   const isPersonalScope = !!request.personalScopeId;
