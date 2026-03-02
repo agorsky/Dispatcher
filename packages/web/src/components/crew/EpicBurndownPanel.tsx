@@ -57,7 +57,7 @@ export function EpicBurndownPanel() {
       <select
         value={epicId}
         onChange={(e) => setSelectedEpicId(e.target.value)}
-        className="rounded-md border bg-background px-3 py-2 text-sm"
+        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
       >
         {epics.map((epic) => (
           <option key={epic.id} value={epic.id}>
@@ -121,7 +121,7 @@ export function EpicBurndownPanel() {
                 return (
                   <div key={feature.id} className="rounded-lg border bg-card p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
                           className={cn(
                             'inline-block h-2 w-2 rounded-full',
@@ -132,9 +132,9 @@ export function EpicBurndownPanel() {
                                 : 'bg-muted-foreground'
                           )}
                         />
-                        <span className="text-sm font-medium truncate">{feature.title}</span>
+                        <span className="text-sm font-medium truncate flex-1 min-w-0">{feature.title}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground tabular-nums">
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0 ml-2">
                         {featureCompleted}/{featureTotal}
                       </span>
                     </div>
