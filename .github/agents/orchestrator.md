@@ -46,7 +46,20 @@ This returns a phased execution plan with:
 
 Present the execution plan to the user and confirm before proceeding.
 
-### Step 1.5: Start Session and Announce Execution
+### Step 1.5: Pre-Flight Check
+
+Before starting execution, verify the epic passes the pre-flight gate:
+```
+dispatcher__check_preflight({ epicId: "<epic-id>" })
+```
+
+If the pre-flight check fails, **stop and report the failures to the user.** Do not proceed with implementation until all checks pass or the user explicitly overrides via `dispatcher__override_preflight`. Common failures:
+- Tasks missing `scaffoldHints` — return to the planner to enrich tasks
+- Features with fewer than 3 acceptance criteria — update before proceeding
+- Epic description score below 95 — update the epic description
+- Unresolved dependency epics still active — wait or override explicitly
+
+### Step 1.6: Start Session and Announce Execution
 
 **Start an AI session** to track this execution run:
 ```

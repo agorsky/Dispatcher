@@ -164,10 +164,11 @@ Release notes MUST match the version in `package.json`. See `docs/CONVENTIONS.md
 
 ## Available Versions
 
+- [v0.3.0](v0.3.0.md) — Quality gates, compliance namespace, dependency graph, scaffold hints (March 2026)
 - [v0.2.0](v0.2.0.md) — Reliability & Activity Dashboard update (February 2026)
 - [v0.1.0](v0.1.0.md) — Initial release (February 2026)
 
 ---
 
-*Last updated: February 2026 (v0.2.0)*
+*Last updated: March 2026 (v0.3.0)*
 *Maintained by: Dispatcher Engineering Team*

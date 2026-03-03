@@ -447,6 +447,7 @@ dispatcher__manage_description({
 - **Tasks:** At least 2 acceptance criteria each
 - **AI Instructions:** Must be specific enough for a fresh AI session to implement without additional context. Include concrete file paths, function names, and step-by-step guidance. Reference example files from `spectree__detect_patterns` output where applicable.
 - **Files Involved:** At least 1 file per task. Use full relative paths from the repo root.
+- **Scaffold Hints (REQUIRED):** Every task MUST include `scaffoldHints` — a JSON array of specific file paths the implementing agent will create or modify. This is the primary mechanism for preventing LAW-005 violations (missing relatedFiles). A task without scaffoldHints will be rejected by the MCP validation gate. Example: `["packages/api/src/services/myService.ts", "packages/web/src/components/MyComponent.tsx"]`
 - **Path Validation:** If `spectree__analyze_file_impact` (from Stage 2) reported any `filesInvolved` paths as non-existent, you MUST either correct the path or explicitly note the file as new in the `technicalNotes`. Warn in the stage output if any proposed paths don't exist and aren't flagged as new files.
 - **Effort Alignment:** The `estimatedEffort` and `estimatedComplexity` fields should be consistent with the `spectree__estimate_effort` results. If a task's effort score is >= 8 (complex/critical), flag it for potential splitting.
 
