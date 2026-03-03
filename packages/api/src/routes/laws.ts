@@ -32,7 +32,7 @@ export default function lawsRoutes(
 ): void {
   /**
    * GET /api/v1/laws
-   * List laws with optional filters (severity, appliesTo, isActive)
+   * List laws with optional filters (severity, appliesTo, isActive, namespace)
    */
   fastify.get<{ Querystring: ListLawsQuery }>(
     "/",
@@ -45,6 +45,7 @@ export default function lawsRoutes(
         severity?: string;
         appliesTo?: string;
         isActive?: boolean;
+        namespace?: string;
         cursor?: string;
         limit?: number;
       } = {};
@@ -57,6 +58,9 @@ export default function lawsRoutes(
       }
       if (request.query.isActive !== undefined) {
         options.isActive = request.query.isActive;
+      }
+      if (request.query.namespace) {
+        options.namespace = request.query.namespace;
       }
       if (request.query.cursor) {
         options.cursor = request.query.cursor;
@@ -94,7 +98,7 @@ export default function lawsRoutes(
 
   /**
    * POST /api/v1/laws
-   * Create a new law
+   * Create a new law. When TEST_RUN env var is set, namespace is forced to 'test'.
    */
   fastify.post<{ Body: CreateLawInput }>(
     "/",
@@ -104,7 +108,11 @@ export default function lawsRoutes(
     },
     async (request, reply) => {
       try {
-        const law = await createLaw(request.body);
+        const body = { ...request.body };
+        if (process.env.TEST_RUN) {
+          body.namespace = "test";
+        }
+        const law = await createLaw(body);
         return reply.status(201).send({ data: law });
       } catch (error) {
         if (error instanceof ValidationError) {

@@ -24,7 +24,8 @@ const severityColors: Record<string, string> = {
 };
 
 export function LawsPage() {
-  const { data: laws, isLoading, isError } = useLaws();
+  const [namespaceFilter, setNamespaceFilter] = useState<string>('production');
+  const { data: laws, isLoading, isError } = useLaws(namespaceFilter === '_all' ? undefined : namespaceFilter);
   const [severityFilter, setSeverityFilter] = useState<string>('_all');
   const [appliesToFilter, setAppliesToFilter] = useState<string>('_all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -77,6 +78,18 @@ export function LawsPage() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex items-center gap-3">
+        <Select value={namespaceFilter} onValueChange={setNamespaceFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Namespace" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="production">Production</SelectItem>
+            <SelectItem value="test">Test</SelectItem>
+            <SelectItem value="archived">Archived</SelectItem>
+            <SelectItem value="_all">All Namespaces</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="All Severities" />

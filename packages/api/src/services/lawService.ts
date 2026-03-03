@@ -10,6 +10,7 @@ export interface CreateLawInput {
   auditLogic: string;
   consequence: string;
   appliesTo: string;
+  namespace?: string;
 }
 
 export interface UpdateLawInput {
@@ -20,12 +21,14 @@ export interface UpdateLawInput {
   auditLogic?: string | undefined;
   consequence?: string | undefined;
   appliesTo?: string | undefined;
+  namespace?: string | undefined;
 }
 
 export interface ListLawsOptions {
   severity?: string;
   appliesTo?: string;
   isActive?: boolean;
+  namespace?: string;
   cursor?: string;
   limit?: number;
 }
@@ -50,6 +53,7 @@ export async function listLaws(
     severity?: string;
     appliesTo?: string;
     isActive?: boolean;
+    namespace?: string;
   } = {};
 
   if (options.severity !== undefined) {
@@ -60,6 +64,9 @@ export async function listLaws(
   }
   if (options.isActive !== undefined) {
     whereClause.isActive = options.isActive;
+  }
+  if (options.namespace !== undefined) {
+    whereClause.namespace = options.namespace;
   }
 
   const laws = await prisma.law.findMany({
@@ -128,6 +135,7 @@ export async function createLaw(input: CreateLawInput): Promise<Law> {
       auditLogic: input.auditLogic,
       consequence: input.consequence,
       appliesTo: input.appliesTo,
+      namespace: input.namespace ?? "production",
     },
   });
 }
@@ -166,6 +174,7 @@ export async function updateLaw(
   if (input.auditLogic !== undefined) data.auditLogic = input.auditLogic;
   if (input.consequence !== undefined) data.consequence = input.consequence;
   if (input.appliesTo !== undefined) data.appliesTo = input.appliesTo;
+  if (input.namespace !== undefined) data.namespace = input.namespace;
 
   return prisma.law.update({
     where: { id: existing.id },

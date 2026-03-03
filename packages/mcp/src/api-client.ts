@@ -1210,6 +1210,7 @@ export interface Law {
   consequence: string;
   appliesTo: string;
   isActive: boolean;
+  namespace: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -3627,6 +3628,7 @@ export class ApiClient {
     severity?: string;
     appliesTo?: string;
     isActive?: boolean;
+    namespace?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ data: Law[]; meta: { cursor: string | null; hasMore: boolean } }> {
@@ -3634,6 +3636,7 @@ export class ApiClient {
       severity: params?.severity,
       appliesTo: params?.appliesTo,
       isActive: params?.isActive,
+      namespace: params?.namespace,
       limit: params?.limit,
       cursor: params?.cursor,
     });
@@ -3658,6 +3661,7 @@ export class ApiClient {
     auditLogic: string;
     consequence: string;
     appliesTo: string;
+    namespace?: string;
   }): Promise<{ data: Law }> {
     return this.request<{ data: Law }>("POST", "/api/v1/laws", input);
   }
