@@ -64,6 +64,54 @@ The web container (nginx) proxies `/api/*` requests to the API container, so bot
 
 ---
 
+## Remote Access via Tailscale
+
+You can expose Dispatcher securely to your phone or other devices using [Tailscale](https://tailscale.com) — no firewall changes or port forwarding required.
+
+### Prerequisites
+
+- Tailscale installed and authenticated on the host machine
+- Tailscale installed and authenticated on the remote device (phone, laptop, etc.)
+
+### Setup
+
+```bash
+# Expose Dispatcher on port 8443 via Tailscale HTTPS
+tailscale serve --bg --https=8443 http://127.0.0.1:80
+```
+
+Dispatcher is now accessible from any device on your Tailscale network at:
+
+```
+https://<your-machine-name>.<tailnet>.ts.net:8443
+```
+
+Tailscale provides a valid HTTPS certificate automatically — no manual TLS setup required.
+
+### Finding your Tailscale hostname
+
+```bash
+tailscale status
+```
+
+The hostname shown (e.g. `my-mac-mini.tail1234ab.ts.net`) is your stable address. It does not change on re-authentication, unlike Tailscale IP addresses (which can change). Always use the hostname, not the IP.
+
+### Verify it's working
+
+```bash
+tailscale serve status
+```
+
+You should see both the gateway (port 443) and Dispatcher (port 8443) listed.
+
+### Disabling remote access
+
+```bash
+tailscale serve --https=8443 off
+```
+
+---
+
 ## Connecting the MCP Server
 
 The MCP server runs on your **host machine** (not inside Docker). It connects to the Dockerized API over `localhost:3001`.
