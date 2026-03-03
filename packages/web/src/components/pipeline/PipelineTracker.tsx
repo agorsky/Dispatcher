@@ -2,6 +2,8 @@ import { PipelineStage, type StageStatus } from './PipelineStage';
 import type { PipelineStatus, PipelineStatusValue } from '@/lib/api/epic-requests';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { Lock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const STAGE_ORDER: PipelineStatusValue[] = ['approved', 'planning', 'planned', 'building', 'done'];
 
@@ -48,19 +50,50 @@ function getStageLink(
   return {};
 }
 
+export interface DependencyStatus {
+  blocked: boolean;
+  blockingEpics: Array<{ identifier: string; name: string; id: string }>;
+}
+
 export interface PipelineTrackerProps {
   pipeline: PipelineStatus;
   className?: string;
+  dependencyStatus?: DependencyStatus;
 }
 
-export function PipelineTracker({ pipeline, className }: PipelineTrackerProps) {
+export function PipelineTracker({ pipeline, className, dependencyStatus }: PipelineTrackerProps) {
   const { pipelineStatus, pipelineUpdatedAt, pipelineError } = pipeline;
+  const isBlocked = dependencyStatus?.blocked === true;
 
   return (
     <div className={cn('space-y-3', className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">Pipeline Status</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Pipeline Status</span>
+          {isBlocked && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-full cursor-default">
+                    <Lock className="h-3 w-3" />
+                    Blocked
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-medium mb-1">Blocked by:</p>
+                  <ul className="space-y-0.5">
+                    {dependencyStatus!.blockingEpics.map((e) => (
+                      <li key={e.id} className="font-mono text-xs">
+                        {e.identifier}: {e.name}
+                      </li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         {pipelineUpdatedAt && (
           <span className="text-xs text-muted-foreground">
             Updated {formatDistanceToNow(new Date(pipelineUpdatedAt), { addSuffix: true })}
@@ -69,7 +102,7 @@ export function PipelineTracker({ pipeline, className }: PipelineTrackerProps) {
       </div>
 
       {/* Stage tracker */}
-      <div className="flex items-start w-full overflow-x-auto pb-1">
+      <div className={cn("flex items-start w-full overflow-x-auto pb-1", isBlocked && "opacity-50 pointer-events-none select-none")}>
         <div className="flex items-start w-full min-w-[320px]">
           {pipelineStatus === 'error' ? (
             // Error state: show all stages grayed, plus error stage
@@ -114,6 +147,14 @@ export function PipelineTracker({ pipeline, className }: PipelineTrackerProps) {
       {pipelineStatus === 'error' && pipelineError && (
         <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950 px-3 py-2 rounded-md">
           {pipelineError}
+        </div>
+      )}
+
+      {/* Blocked message */}
+      {isBlocked && (
+        <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+          <Lock className="h-3 w-3" />
+          Blocked — waiting for {dependencyStatus!.blockingEpics.length} dependenc{dependencyStatus!.blockingEpics.length === 1 ? 'y' : 'ies'} to complete before dispatch.
         </div>
       )}
 
