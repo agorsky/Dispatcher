@@ -20,6 +20,7 @@ export interface CreateEpicInput {
 
 export interface UpdateEpicInput extends Partial<Omit<CreateEpicInput, 'teamId'>> {
   id: string;
+  dependencies?: string; // JSON string of epic UUID array
 }
 
 export const epicsApi = {
@@ -66,4 +67,10 @@ export const epicsApi = {
 
   reopen: (id: string) => api.patch<{ data: Epic }>(`/epics/${id}/reopen`, {}),
   dispatch: (id: string) => api.post<{ data: { epicId: string; dispatched: boolean; message: string } }>(`/epics/${id}/dispatch`, {}),
+
+  recordDependencyOverride: (id: string, reason: string) =>
+    api.post<{ data: { epicId: string; overrideRecorded: boolean; reason: string; blockingEpics: Array<{ id: string; identifier: string; name: string; status: string }> } }>(
+      `/epics/${id}/dependency-override`,
+      { reason }
+    ),
 };
