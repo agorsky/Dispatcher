@@ -103,6 +103,7 @@ interface UpdateEpicBody {
   icon?: string;
   color?: string;
   sortOrder?: number;
+  dependencies?: string; // JSON string of epic UUID array
 }
 
 interface ReorderEpicBody {
@@ -249,7 +250,7 @@ export default function epicsRoutes(
     { preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("member")] },
     async (request, reply) => {
       const { id } = request.params;
-      const { name, description, icon, color, sortOrder } = request.body;
+      const { name, description, icon, color, sortOrder, dependencies } = request.body;
 
       // Validate description quality on updates unless this is a test bypass request
       if (description !== undefined && !isTestBypassRequest(request.headers)) {
@@ -269,12 +270,14 @@ export default function epicsRoutes(
         icon?: string;
         color?: string;
         sortOrder?: number;
+        dependencies?: string;
       } = {};
       if (name !== undefined) input.name = name;
       if (description !== undefined) input.description = description;
       if (icon !== undefined) input.icon = icon;
       if (color !== undefined) input.color = color;
       if (sortOrder !== undefined) input.sortOrder = sortOrder;
+      if (dependencies !== undefined) input.dependencies = dependencies;
 
       const epic = await updateEpic(id, input);
       return reply.send({ data: epic });

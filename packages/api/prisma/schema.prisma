@@ -149,6 +149,11 @@ model Epic {
   lastAiSessionId String?   @map("last_ai_session_id")  // Track last AI session
   lastAiUpdateAt  DateTime? @map("last_ai_update_at")
 
+  // Cross-epic dependency tracking
+  dependencies             String?   @map("dependencies")               // JSON: string[] of epic UUIDs this epic depends on
+  dependencyOverrideReason String?   @map("dependency_override_reason") // Logged reason when override used
+  dependencyOverrideAt     DateTime? @map("dependency_override_at")     // When override was recorded
+
   team          Team?          @relation(fields: [teamId], references: [id], onDelete: Cascade)
   personalScope PersonalScope? @relation(fields: [personalScopeId], references: [id], onDelete: Cascade)
   creator       User?          @relation("EpicCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -585,6 +590,7 @@ model Law {
   consequence String
   appliesTo   String   @map("applies_to")
   isActive    Boolean  @default(true) @map("is_active")
+  namespace   String   @default("production") @map("namespace")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -593,6 +599,7 @@ model Law {
   @@index([severity])
   @@index([appliesTo])
   @@index([isActive])
+  @@index([namespace])
   @@map("laws")
 }
 

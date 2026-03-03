@@ -25,6 +25,7 @@ export interface UpdateEpicInput {
   icon?: string | undefined;
   color?: string | undefined;
   sortOrder?: number | undefined;
+  dependencies?: string | undefined; // JSON string of epic UUID array
 }
 
 export type EpicOrderBy = 'sortOrder' | 'createdAt' | 'updatedAt';
@@ -399,6 +400,7 @@ export async function updateEpic(
     icon?: string;
     color?: string;
     sortOrder?: number;
+    dependencies?: string;
   } = {};
 
   if (input.name !== undefined) {
@@ -415,6 +417,9 @@ export async function updateEpic(
   }
   if (input.sortOrder !== undefined) {
     data.sortOrder = input.sortOrder;
+  }
+  if (input.dependencies !== undefined) {
+    data.dependencies = input.dependencies;
   }
 
   // Fetch the entity BEFORE the update for changelog diff
