@@ -10,6 +10,7 @@ import { getApiClient, ApiError } from "../api-client.js";
 import { createResponse, createErrorResponse } from "./utils.js";
 
 const lawSeverityValues = ["minor", "major", "critical"] as const;
+const lawNamespaceValues = ["production", "test", "archived"] as const;
 
 export function registerLawTools(server: McpServer): void {
   // ==========================================================================
@@ -20,7 +21,8 @@ export function registerLawTools(server: McpServer): void {
     {
       description:
         "List all laws in the registry. Laws define enforceable rules for AI agent governance. " +
-        "Filter by severity, appliesTo (agent name), or active status.",
+        "Filter by severity, appliesTo (agent name), active status, or namespace. " +
+        "IMPORTANT: Always use namespace='production' when listing laws for audit or compliance checks.",
       inputSchema: {
         severity: z
           .enum(lawSeverityValues)
@@ -34,6 +36,10 @@ export function registerLawTools(server: McpServer): void {
           .boolean()
           .optional()
           .describe("Filter by active status. Defaults to showing all."),
+        namespace: z
+          .enum(lawNamespaceValues)
+          .optional()
+          .describe("Filter laws by namespace: production, test, or archived. Defaults to all namespaces."),
         limit: z
           .number()
           .int()
@@ -54,6 +60,7 @@ export function registerLawTools(server: McpServer): void {
         if (input.severity !== undefined) params.severity = input.severity;
         if (input.appliesTo !== undefined) params.appliesTo = input.appliesTo;
         if (input.isActive !== undefined) params.isActive = input.isActive;
+        if (input.namespace !== undefined) params.namespace = input.namespace;
         if (input.limit !== undefined) params.limit = input.limit;
         if (input.cursor !== undefined) params.cursor = input.cursor;
         const result = await apiClient.listLaws(params);
@@ -107,7 +114,8 @@ export function registerLawTools(server: McpServer): void {
       description:
         "Create a new law in the registry. Laws define enforceable rules for AI agent behavior. " +
         "Each law has a unique lawCode (e.g., LAW-001), severity level, audit logic describing " +
-        "how to verify compliance, and consequences for violations.",
+        "how to verify compliance, and consequences for violations. " +
+        "IMPORTANT: Test harness MUST pass namespace='test' to avoid polluting the production law registry.",
       inputSchema: {
         lawCode: z
           .string()
@@ -141,12 +149,16 @@ export function registerLawTools(server: McpServer): void {
           .min(1)
           .max(255)
           .describe("Agent role name this law applies to (e.g., 'feature-worker', 'all')."),
+        namespace: z
+          .enum(lawNamespaceValues)
+          .optional()
+          .describe("Law namespace: production (default), test, or archived. Test harness MUST pass 'test'."),
       },
     },
     async (input) => {
       try {
         const apiClient = getApiClient();
-        const result = await apiClient.createLaw({
+        const createPayload: Parameters<typeof apiClient.createLaw>[0] = {
           lawCode: input.lawCode,
           title: input.title,
           description: input.description,
@@ -154,7 +166,9 @@ export function registerLawTools(server: McpServer): void {
           auditLogic: input.auditLogic,
           consequence: input.consequence,
           appliesTo: input.appliesTo,
-        });
+        };
+        if (input.namespace !== undefined) createPayload.namespace = input.namespace;
+        const result = await apiClient.createLaw(createPayload);
 
         return createResponse({
           ...result.data,
@@ -188,6 +202,7 @@ export function registerLawTools(server: McpServer): void {
         auditLogic: z.string().min(1).max(5000).optional().describe("Updated audit logic."),
         consequence: z.string().min(1).max(2000).optional().describe("Updated consequence."),
         appliesTo: z.string().min(1).max(255).optional().describe("Updated appliesTo agent name."),
+        namespace: z.enum(lawNamespaceValues).optional().describe("Updated namespace: production, test, or archived."),
       },
     },
     async (input) => {

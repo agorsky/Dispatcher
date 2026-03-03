@@ -7,6 +7,9 @@ import { z } from "zod";
 const lawSeverityValues = ["minor", "major", "critical"] as const;
 export type LawSeverity = (typeof lawSeverityValues)[number];
 
+export const lawNamespaceValues = ["production", "test", "archived"] as const;
+export type LawNamespace = (typeof lawNamespaceValues)[number];
+
 /**
  * Schema for creating a new law
  */
@@ -22,6 +25,7 @@ export const createLawSchema = z.object({
   auditLogic: z.string().min(1).max(5000),
   consequence: z.string().min(1).max(2000),
   appliesTo: z.string().min(1).max(255),
+  namespace: z.enum(lawNamespaceValues).optional().default("production"),
 });
 
 /**
@@ -39,6 +43,7 @@ export const listLawsQuerySchema = z.object({
     .string()
     .transform((val) => val === "true")
     .optional(),
+  namespace: z.enum(lawNamespaceValues).optional(),
   cursor: z.string().uuid().optional(),
   limit: z
     .string()

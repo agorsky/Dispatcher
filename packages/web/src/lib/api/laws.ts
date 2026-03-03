@@ -10,6 +10,7 @@ export interface Law {
   isActive: boolean;
   auditLogic: string;
   consequence: string;
+  namespace: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,7 +20,8 @@ export interface LawsResponse {
 }
 
 export const lawsApi = {
-  list: () => api.get<LawsResponse>("/laws"),
+  list: (namespace?: string) =>
+    api.get<LawsResponse>(namespace ? `/laws?namespace=${encodeURIComponent(namespace)}` : "/laws"),
   listByAgent: (appliesTo: string) =>
     api.get<LawsResponse>(`/laws?appliesTo=${encodeURIComponent(appliesTo)}&isActive=true`),
 };

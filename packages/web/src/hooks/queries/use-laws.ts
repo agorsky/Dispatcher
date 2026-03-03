@@ -4,13 +4,13 @@ import { lawsApi } from '@/lib/api/laws';
 export const lawKeys = {
   all: ['laws'] as const,
   lists: () => [...lawKeys.all, 'list'] as const,
-  list: () => [...lawKeys.lists()] as const,
+  list: (namespace?: string) => [...lawKeys.lists(), { namespace }] as const,
 };
 
-export function useLaws() {
+export function useLaws(namespace?: string) {
   return useQuery({
-    queryKey: lawKeys.list(),
-    queryFn: () => lawsApi.list(),
+    queryKey: lawKeys.list(namespace),
+    queryFn: () => lawsApi.list(namespace),
     select: (response) => response.data,
   });
 }
