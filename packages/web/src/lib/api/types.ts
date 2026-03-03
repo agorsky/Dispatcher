@@ -69,6 +69,9 @@ export interface Epic {
   completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  dependencies?: string | null; // JSON string of epic UUID array
+  dependencyOverrideReason?: string | null;
+  dependencyOverrideAt?: string | null;
 }
 
 export interface Status {

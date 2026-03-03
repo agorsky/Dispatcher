@@ -1,5 +1,6 @@
 import { prisma } from "../lib/db.js";
 import { validateEpicDescription } from "./descriptionValidator.js";
+import { resolveDependencies } from "./dependencyService.js";
 import type { PreflightCheckResult, PreflightResult } from "../schemas/preflight.js";
 
 // ---------------------------------------------------------------------------
@@ -144,6 +145,28 @@ export function checkEpicDescription(description: string | null | undefined): Pr
 // Main entry point
 // ---------------------------------------------------------------------------
 
+export async function checkDependencies(epicId: string): Promise<PreflightCheckResult> {
+  const result = await resolveDependencies(epicId);
+
+  if (!result.blocked) {
+    return {
+      checkName: "Cross-Epic Dependencies",
+      passed: true,
+      details: "All epic dependencies are resolved (or no dependencies set)",
+    };
+  }
+
+  return {
+    checkName: "Cross-Epic Dependencies",
+    passed: false,
+    details: `Epic is blocked by ${result.blockingEpics.length} unresolved dependenc${result.blockingEpics.length === 1 ? "y" : "ies"}`,
+    items: result.blockingEpics.map((e) => ({
+      identifier: e.identifier,
+      issue: `Dependency epic '${e.identifier}' (${e.name}) is not yet completed (status: ${e.status})`,
+    })),
+  };
+}
+
 export async function runPreflight(epicId: string): Promise<PreflightResult> {
   const epic = await prisma.epic.findUnique({
     where: { id: epicId },
@@ -162,7 +185,10 @@ export async function runPreflight(epicId: string): Promise<PreflightResult> {
     throw new Error(`Epic with id '${epicId}' not found`);
   }
 
+  const depCheck = await checkDependencies(epicId);
+
   const checks: PreflightCheckResult[] = [
+    depCheck,
     checkScaffoldHints(epic.features),
     checkAcceptanceCriteria(epic.features),
     checkTaskDensity(epic.features),

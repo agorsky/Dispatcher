@@ -149,6 +149,11 @@ model Epic {
   lastAiSessionId String?   @map("last_ai_session_id")  // Track last AI session
   lastAiUpdateAt  DateTime? @map("last_ai_update_at")
 
+  // Cross-epic dependency tracking
+  dependencies             String?   @map("dependencies")               // JSON: string[] of epic UUIDs this epic depends on
+  dependencyOverrideReason String?   @map("dependency_override_reason") // Logged reason when override used
+  dependencyOverrideAt     DateTime? @map("dependency_override_at")     // When override was recorded
+
   team          Team?          @relation(fields: [teamId], references: [id], onDelete: Cascade)
   personalScope PersonalScope? @relation(fields: [personalScopeId], references: [id], onDelete: Cascade)
   creator       User?          @relation("EpicCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)

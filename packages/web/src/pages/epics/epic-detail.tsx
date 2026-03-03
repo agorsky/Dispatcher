@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DependencySelector } from "@/components/epics/dependency-selector";
+import { DependencyBadge } from "@/components/epics/dependency-badge";
 
 export function EpicDetailPage() {
   const { epicId } = useParams<{ epicId: string }>();
@@ -92,6 +94,10 @@ export function EpicDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [depIds, setDepIds] = useState<string[]>([]);
+  const [depBlocked, setDepBlocked] = useState(false);
+  // Track resolved dep epic info for badge display
+  const [depEpics, setDepEpics] = useState<Array<{ id: string; identifier: string; name: string; status: string }>>([]);
   
   // Initialize active tab from URL params or default to 'overview'
   const initialTab = (searchParams.get('tab') as 'overview' | 'plan' | 'monitor') || 'overview';
@@ -111,6 +117,18 @@ export function EpicDetailPage() {
       setSearchParams(newParams, { replace: true });
     }
   }, [activeTab, searchParams, setSearchParams]);
+
+  // Sync depIds from epic data when epic loads/changes
+  useEffect(() => {
+    if (!epic) return;
+    try {
+      const parsed = epic.dependencies ? (JSON.parse(epic.dependencies) as string[]) : [];
+      setDepIds(Array.isArray(parsed) ? parsed : []);
+      setDepBlocked(false); // will be resolved server-side on dispatch
+    } catch {
+      setDepIds([]);
+    }
+  }, [epic?.dependencies]);
 
   if (isLoading) {
     return (
@@ -166,6 +184,14 @@ export function EpicDetailPage() {
     await reopenEpic.mutateAsync(epic.id);
   };
 
+  const handleDepsChange = async (newDeps: string[]) => {
+    setDepIds(newDeps);
+    await updateEpic.mutateAsync({
+      id: epic.id,
+      dependencies: JSON.stringify(newDeps),
+    });
+  };
+
   const doDispatch = async () => {
     try {
       const result = await dispatchEpic.mutateAsync(epic.id);
@@ -174,8 +200,16 @@ export function EpicDetailPage() {
       setTimeout(() => setOptimisticDispatched(false), 30000);
       void refetchActiveSession();
       toast(result.data.message);
-    } catch {
-      toast("Dispatch failed — could not trigger implementation.");
+    } catch (err: unknown) {
+      // Check if this is a dependency block (409)
+      const apiErr = err as { status?: number; body?: { blockingEpics?: Array<{ id: string; identifier: string; name: string; status: string }> } };
+      if (apiErr?.status === 409 && apiErr?.body?.blockingEpics) {
+        setDepBlocked(true);
+        setDepEpics(apiErr.body.blockingEpics);
+        toast("Cannot dispatch: epic is blocked by unresolved dependencies.");
+      } else {
+        toast("Dispatch failed — could not trigger implementation.");
+      }
     }
   };
 
@@ -322,15 +356,30 @@ export function EpicDetailPage() {
               {unarchiveEpic.isPending ? "Restoring..." : "Restore Epic"}
             </Button>
           ) : !isCompleted ? (
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
               <Button
                 size="sm"
                 onClick={() => void handleDispatch()}
-                disabled={dispatchEpic.isPending || dispatched}
-                className={dispatched ? "bg-blue-400 cursor-not-allowed text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
+                disabled={dispatchEpic.isPending || dispatched || depBlocked}
+                className={
+                  depBlocked
+                    ? "bg-gray-400 cursor-not-allowed text-white"
+                    : dispatched
+                    ? "bg-blue-400 cursor-not-allowed text-white"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                }
+                title={depBlocked ? "Blocked by unresolved dependencies" : undefined}
               >
                 <Rocket className="h-4 w-4 mr-1.5" />
-                {dispatchEpic.isPending ? "Dispatching..." : dispatched ? "Implementing..." : hasRunBefore ? "Resume Implementation" : "Start Implementation"}
+                {dispatchEpic.isPending
+                  ? "Dispatching..."
+                  : depBlocked
+                  ? "Blocked"
+                  : dispatched
+                  ? "Implementing..."
+                  : hasRunBefore
+                  ? "Resume Implementation"
+                  : "Start Implementation"}
               </Button>
               {preflightData && !preflightData.passed && (
                 <PreflightBadge
@@ -520,6 +569,39 @@ export function EpicDetailPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Dependencies Section */}
+      {!isCompleted && (
+        <div className="border-b bg-muted/20 px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Dependencies</span>
+            {depBlocked && (
+              <Badge variant="destructive" className="text-xs">Blocked</Badge>
+            )}
+          </div>
+          {depIds.length > 0 && depEpics.length > 0 ? (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {depEpics.map((dep) => (
+                <DependencyBadge
+                  key={dep.id}
+                  epicId={dep.id}
+                  epicIdentifier={dep.identifier}
+                  epicName={dep.name}
+                  status={dep.status}
+                />
+              ))}
+            </div>
+          ) : depIds.length > 0 ? (
+            <p className="text-xs text-muted-foreground mb-2">{depIds.length} dependenc{depIds.length === 1 ? 'y' : 'ies'} set</p>
+          ) : null}
+          <DependencySelector
+            epicId={epic.id}
+            teamId={epic.teamId}
+            currentDependencies={depIds}
+            onDependenciesChange={handleDepsChange}
+          />
         </div>
       )}
 

@@ -17,6 +17,7 @@ export const createEpicSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .optional(),
   sortOrder: z.number().optional(),
+  dependencies: z.string().optional(), // JSON string of UUID array
 });
 
 /**
