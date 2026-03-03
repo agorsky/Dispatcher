@@ -72,7 +72,7 @@ beforeAll(() => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Complete expected tool list (116 tools across 32 modules)
+// Complete expected tool list (119 tools across 34 modules)
 //
 // This is the authoritative list of every tool name registered in the MCP server.
 // If a new tool is added and this test fails, add it to the appropriate section below.
@@ -260,6 +260,13 @@ const EXPECTED_TOOLS: { name: string; module: string; deprecated?: boolean }[] =
 
   // skill-packs/sync-local.ts (1 tool)
   { name: "spectree__sync_local_packs", module: "skill-packs/sync-local" },
+
+  // plan-scoring.ts (2 tools) — ENG-E219
+  { name: "spectree__score_plan", module: "plan-scoring" },
+  { name: "spectree__validate_task_completeness", module: "plan-scoring" },
+
+  // plan-requirements.ts (1 tool) — ENG-E219
+  { name: "spectree__get_epic_requirements", module: "plan-requirements" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

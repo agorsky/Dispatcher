@@ -3844,4 +3844,22 @@ export class ApiClient {
       `/api/v1/epics/${encodeURIComponent(epicId)}/briefing`
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Plan Scoring (ENG-E219)
+  // ---------------------------------------------------------------------------
+
+  async scorePlan(epicId: string): Promise<{ data: unknown }> {
+    return this.request<{ data: unknown }>(
+      "GET",
+      `/api/v1/epics/${encodeURIComponent(epicId)}/score`
+    );
+  }
+
+  async validateTaskCompleteness(epicId: string): Promise<{ data: unknown }> {
+    return this.request<{ data: unknown }>(
+      "GET",
+      `/api/v1/epics/${encodeURIComponent(epicId)}/validate-tasks`
+    );
+  }
 }
