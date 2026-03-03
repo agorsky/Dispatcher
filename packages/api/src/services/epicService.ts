@@ -17,6 +17,7 @@ export interface CreateEpicInput {
   icon?: string | undefined;
   color?: string | undefined;
   sortOrder?: number | undefined;
+  dependencies?: string | undefined; // JSON string of epic UUID array
 }
 
 export interface UpdateEpicInput {
@@ -320,6 +321,7 @@ export async function createEpic(input: CreateEpicInput, userId?: string): Promi
     description?: string;
     icon?: string;
     color?: string;
+    dependencies?: string;
   } = {
     name: input.name.trim(),
     teamId: input.teamId,
@@ -336,6 +338,9 @@ export async function createEpic(input: CreateEpicInput, userId?: string): Promi
   }
   if (input.color !== undefined) {
     data.color = input.color.trim();
+  }
+  if (input.dependencies !== undefined) {
+    data.dependencies = input.dependencies;
   }
 
   const epic = await prisma.epic.create({ data });

@@ -52,6 +52,7 @@ import {
 } from "../schemas/structuredDescription.js";
 import type { CreateEpicCompleteInput } from "../schemas/compositeEpic.js";
 import { runPreflight, recordOverride } from "../services/preflightService.js";
+import { resolveDependencies, validateDependencies, parseDependencies } from "../services/dependencyService.js";
 import { prisma } from "../lib/db.js";
 import { preflightOverrideInputSchema, type PreflightOverrideInput } from "../schemas/preflight.js";
 
@@ -95,6 +96,7 @@ interface CreateEpicBody {
   icon?: string;
   color?: string;
   sortOrder?: number;
+  dependencies?: string; // JSON string of epic UUID array
 }
 
 interface UpdateEpicBody {
@@ -203,7 +205,7 @@ export default function epicsRoutes(
     "/",
     { preHandler: [authenticate, requireTeamAccess("teamId"), requireRole("member")] },
     async (request, reply) => {
-      const { name, teamId, description, icon, color, sortOrder } = request.body;
+      const { name, teamId, description, icon, color, sortOrder, dependencies } = request.body;
 
       // Validate description quality unless this is a test bypass request
       if (description !== undefined && !isTestBypassRequest(request.headers)) {
@@ -217,6 +219,26 @@ export default function epicsRoutes(
         }
       }
 
+      // Validate dependencies if provided
+      if (dependencies !== undefined) {
+        let parsedDeps: string[];
+        try {
+          parsedDeps = parseDependencies(dependencies);
+        } catch {
+          return reply.status(400).send({ error: "dependencies must be a valid JSON array of epic UUIDs" });
+        }
+        if (parsedDeps.length > 0) {
+          // For create, epicId doesn't exist yet — just check existence (no self-ref possible)
+          const foundEpics = await prisma.epic.findMany({
+            where: { id: { in: parsedDeps } },
+            select: { id: true },
+          });
+          if (foundEpics.length !== parsedDeps.length) {
+            return reply.status(400).send({ error: "One or more dependency epic IDs do not exist" });
+          }
+        }
+      }
+
       const input: {
         name: string;
         teamId: string;
@@ -225,6 +247,7 @@ export default function epicsRoutes(
         icon?: string;
         color?: string;
         sortOrder?: number;
+        dependencies?: string;
       } = {
         name,
         teamId,
@@ -234,6 +257,7 @@ export default function epicsRoutes(
       if (icon !== undefined) input.icon = icon;
       if (color !== undefined) input.color = color;
       if (sortOrder !== undefined) input.sortOrder = sortOrder;
+      if (dependencies !== undefined) input.dependencies = dependencies;
 
       const epic = await createEpic(input);
       return reply.status(201).send({ data: epic });
@@ -261,6 +285,17 @@ export default function epicsRoutes(
             message: "Epic description does not meet quality requirements.",
             violations: validation.violations,
           });
+        }
+      }
+
+      // Validate dependencies if provided
+      if (dependencies !== undefined) {
+        const parsedDeps = parseDependencies(dependencies);
+        if (parsedDeps.length > 0) {
+          const depValidation = await validateDependencies(id, parsedDeps);
+          if (!depValidation.valid) {
+            return reply.status(400).send({ error: depValidation.error });
+          }
         }
       }
 
@@ -405,6 +440,15 @@ export default function epicsRoutes(
       if (epic.status === "completed") {
         return reply.status(400).send({ error: "Cannot dispatch a completed epic" });
       }
+      // Check cross-epic dependencies — block dispatch if any are unresolved
+      const depResult = await resolveDependencies(id);
+      if (depResult.blocked) {
+        return reply.status(409).send({
+          error: "Dependency Conflict",
+          message: "Epic has unresolved dependencies and cannot be dispatched",
+          blockingEpics: depResult.blockingEpics,
+        });
+      }
       // Forward to webhook receiver on host (works from Docker via host.docker.internal)
       const RECEIVER_URL = process.env.WEBHOOK_RECEIVER_URL || "http://host.docker.internal:7890/dispatch";
       try {
@@ -428,6 +472,51 @@ export default function epicsRoutes(
     }
   );
 
+  /**
+   * POST /api/v1/epics/:id/dependency-override
+   * Override dependency block for an epic dispatch with a logged reason.
+   * Requires authentication, team membership, and manager+ role.
+   */
+  fastify.post<{ Params: EpicIdParams; Body: { reason: string } }>(
+    "/:id/dependency-override",
+    { preHandler: [authenticate, requireTeamAccess("id:epicId"), requireRole("member")] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { reason } = request.body;
+
+      if (!reason || reason.trim() === "") {
+        return reply.status(400).send({ error: "A reason is required to override dependency block" });
+      }
+
+      const epic = await getEpicById(id);
+      if (!epic) {
+        return reply.status(404).send({ error: "Epic not found" });
+      }
+
+      const depResult = await resolveDependencies(id);
+      if (!depResult.blocked) {
+        return reply.status(400).send({ error: "Epic is not currently blocked by dependencies" });
+      }
+
+      await prisma.epic.update({
+        where: { id },
+        data: {
+          dependencyOverrideReason: reason.trim(),
+          dependencyOverrideAt: new Date(),
+        },
+      });
+
+      return reply.send({
+        data: {
+          epicId: id,
+          overrideRecorded: true,
+          reason: reason.trim(),
+          blockingEpics: depResult.blockingEpics,
+          message: "Dependency override recorded. Epic can now be dispatched.",
+        },
+      });
+    }
+  );
 
   /**
    * PUT /api/v1/epics/:id/reorder
