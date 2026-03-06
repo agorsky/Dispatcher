@@ -9,14 +9,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 // Mock prisma (use vi.hoisted to avoid temporal dead zone with vi.mock hoisting)
 // ---------------------------------------------------------------------------
-const { mockEpicFindUnique } = vi.hoisted(() => ({
+const { mockEpicFindUnique, mockTaskUpdate } = vi.hoisted(() => ({
   mockEpicFindUnique: vi.fn(),
+  mockTaskUpdate: vi.fn(),
 }));
 
 vi.mock("../../src/lib/db.js", () => ({
   prisma: {
     epic: {
       findUnique: mockEpicFindUnique,
+    },
+    task: {
+      update: mockTaskUpdate,
     },
     preflightOverride: {
       create: vi.fn(),
@@ -41,9 +45,11 @@ import {
 // Test helpers
 // ---------------------------------------------------------------------------
 
-function makeTask(identifier: string, aiInstructions?: string) {
+function makeTask(identifier: string, aiInstructions?: string, description?: string) {
   return {
+    id: `task-${identifier}`,
     identifier,
+    description: description ?? null,
     structuredDesc: aiInstructions
       ? JSON.stringify({ aiInstructions })
       : null,
@@ -56,6 +62,7 @@ function makeFeature(
   acceptanceCriteria?: string[]
 ) {
   return {
+    id: `feat-${identifier}`,
     identifier,
     structuredDesc: JSON.stringify({
       acceptanceCriteria: acceptanceCriteria ?? ["AC1", "AC2", "AC3"],
@@ -259,7 +266,7 @@ describe("runPreflight", () => {
 
     const result = await runPreflight("epic-123");
     expect(result.epicId).toBe("epic-123");
-    expect(result.checks).toHaveLength(4);
+    expect(result.checks).toHaveLength(5);
     expect(result.checks.map((c) => c.checkName)).toContain("Scaffold Hints");
     expect(result.checks.map((c) => c.checkName)).toContain("Acceptance Criteria");
     expect(result.checks.map((c) => c.checkName)).toContain("Task Density");
@@ -311,9 +318,70 @@ describe("runPreflight", () => {
       features: [],
     });
     const result = await runPreflight("epic-789");
-    expect(result.checks).toHaveLength(4);
+    expect(result.checks).toHaveLength(5);
     // All 3 non-description checks pass with 0 features
     const scaffoldCheck = result.checks.find((c) => c.checkName === "Scaffold Hints");
     expect(scaffoldCheck?.passed).toBe(true);
+  });
+
+  it("auto-backfills structuredDesc from markdown description", async () => {
+    const taskWithMarkdown = {
+      id: "task-backfill",
+      identifier: "ENG-1-1",
+      description: "## AI Instructions\n1. Open file X\n2. Add function Y\n\n## Acceptance Criteria\n- [ ] Thing works\n- [ ] Tests pass",
+      structuredDesc: null,
+    };
+
+    mockEpicFindUnique.mockResolvedValue({
+      id: "epic-backfill",
+      description: null,
+      features: [
+        {
+          id: "feat-1",
+          identifier: "ENG-1",
+          structuredDesc: JSON.stringify({ acceptanceCriteria: ["AC1", "AC2", "AC3"] }),
+          tasks: [taskWithMarkdown],
+        },
+      ],
+    });
+    mockTaskUpdate.mockResolvedValue({});
+
+    const result = await runPreflight("epic-backfill");
+
+    // Verify backfill was attempted
+    expect(mockTaskUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "task-backfill" },
+        data: expect.objectContaining({
+          structuredDesc: expect.any(String),
+        }),
+      })
+    );
+
+    // Verify backfillCount is reported
+    expect(result.backfillCount).toBe(1);
+
+    // After backfill, scaffold hints check should pass for this task
+    const scaffoldCheck = result.checks.find((c) => c.checkName === "Scaffold Hints");
+    expect(scaffoldCheck?.passed).toBe(true);
+  });
+
+  it("skips backfill when task already has structuredDesc", async () => {
+    mockEpicFindUnique.mockResolvedValue({
+      id: "epic-no-backfill",
+      description: null,
+      features: [
+        {
+          id: "feat-1",
+          identifier: "ENG-1",
+          structuredDesc: JSON.stringify({ acceptanceCriteria: ["AC1", "AC2", "AC3"] }),
+          tasks: [makeTask("ENG-1-1", "Already has instructions")],
+        },
+      ],
+    });
+
+    const result = await runPreflight("epic-no-backfill");
+    expect(mockTaskUpdate).not.toHaveBeenCalled();
+    expect(result.backfillCount).toBeUndefined();
   });
 });
