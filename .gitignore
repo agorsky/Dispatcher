@@ -88,3 +88,4 @@ spectree.db-journal
 # Docker local deployment (override *.local pattern)
 !**/Dockerfile.local
 !docker-compose.local.yml
+data/

@@ -23,7 +23,7 @@ services:
       - CORS_ORIGIN=http://localhost
       - DISPATCHER_WEBHOOK_URL=http://host.docker.internal:7890
     volumes:
-      - dispatcher-data:/app/data
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/health"]
       interval: 10s
@@ -46,5 +46,5 @@ services:
       api:
         condition: service_healthy
 
-volumes:
-  dispatcher-data:
+# volumes section removed — DB now lives at ./data/dispatcher.db on host filesystem
+# This means docker-compose down -v CANNOT wipe the database. Ever.
