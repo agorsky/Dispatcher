@@ -18,7 +18,7 @@ const REMINDER_RULES: Record<string, string> = {
   'create_feature': '**Next Step:** Set structured description with `spectree__set_structured_description` including summary, AI instructions, and acceptance criteria. Then create tasks with `spectree__create_task`.',
   
   // Task creation
-  'create_task': '**Next Step:** Set structured description with `spectree__set_structured_description` and add validation checks with `spectree__add_validation` to define "done" criteria.',
+  'create_task': '**Next Step:** If you did not include structuredDesc in this call, set it now with `spectree__manage_description` (action: set) including aiInstructions and acceptanceCriteria. Then add validation checks with `spectree__add_validation` to define "done" criteria.',
   
   // Progress tracking
   'start_work': '**Next Step:** As you work, remember to call `spectree__log_progress` at significant milestones and `spectree__link_code_file` for every file you modify.',
