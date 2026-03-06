@@ -22,6 +22,7 @@ export const preflightResultSchema = z.object({
   score: z.number(),
   checks: z.array(preflightCheckResultSchema),
   checkedAt: z.string(),
+  backfillCount: z.number().optional(),
 });
 
 // ---------------------------------------------------------------------------
