@@ -194,7 +194,11 @@ export function registerCompositeTools(server: McpServer): void {
         "- Resolves dependencies by index (use [0] to depend on the first feature)\n" +
         "- Sets initial status to 'Backlog' for all items\n" +
         "- Returns all created IDs and identifiers for reference\n\n" +
-        "Use this instead of individual create calls when building a complete implementation plan.",
+        "Use this instead of individual create calls when building a complete implementation plan.\n\n" +
+        "**Best Practice**: Include structuredDesc in each task and feature object to ensure " +
+        "pre-flight checks pass. Tasks without structuredDesc.aiInstructions will fail the " +
+        "scaffold hints check. Providing structuredDesc inline avoids the need for separate " +
+        "spectree__manage_description calls after creation.",
       inputSchema: {
         name: z.string().min(1).max(255).describe("Epic name (required)"),
         team: z

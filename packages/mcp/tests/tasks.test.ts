@@ -27,6 +27,7 @@ const { mockApiClient } = vi.hoisted(() => {
     getEpic: vi.fn(),
     listStatuses: vi.fn(),
     resolveStatusId: vi.fn(),
+    setTaskStructuredDesc: vi.fn(),
   };
   return { mockApiClient };
 });
@@ -302,7 +303,7 @@ describe("MCP Tasks Tools", () => {
       };
 
       mockApiClient.getFeature.mockResolvedValue({ data: mockFeature });
-      mockApiClient.createTask.mockResolvedValue({ data: mockTask });
+      mockApiClient.createTask.mockResolvedValue({ data: mockTask, warnings: [] });
 
       const handler = getHandler();
       expect(handler).toBeDefined();
@@ -310,6 +311,8 @@ describe("MCP Tasks Tools", () => {
       const result = await handler!({
         title: "New Task",
         feature_id: "feat-1",
+        executionOrder: 1,
+        estimatedComplexity: "simple",
       });
 
       expect(mockApiClient.createTask).toHaveBeenCalledWith(
@@ -354,7 +357,7 @@ describe("MCP Tasks Tools", () => {
       mockApiClient.getFeature.mockResolvedValue({ data: mockFeature });
       mockApiClient.getEpic.mockResolvedValue({ data: mockEpic });
       mockApiClient.resolveStatusId.mockResolvedValue("status-1");
-      mockApiClient.createTask.mockResolvedValue({ data: mockTask });
+      mockApiClient.createTask.mockResolvedValue({ data: mockTask, warnings: [] });
 
       const handler = getHandler();
       const result = await handler!({
@@ -363,6 +366,8 @@ describe("MCP Tasks Tools", () => {
         description: "Task description",
         status: "status-1",
         assignee: "user-1",
+        executionOrder: 1,
+        estimatedComplexity: "moderate",
       });
 
       expect(mockApiClient.createTask).toHaveBeenCalledWith(
@@ -385,6 +390,8 @@ describe("MCP Tasks Tools", () => {
       const result = await handler!({
         title: "New Task",
         feature_id: "non-existent",
+        executionOrder: 1,
+        estimatedComplexity: "simple",
       });
 
       expect(result.isError).toBe(true);
@@ -599,6 +606,106 @@ describe("MCP Tasks Tools", () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0]?.text).toContain("not found");
+    });
+  });
+
+  describe("spectree__create_task with structuredDesc", () => {
+    const getHandler = () => registeredTools.get("spectree__create_task")?.handler;
+
+    const mockFeature = {
+      id: "feat-1",
+      identifier: "ENG-1",
+      title: "Feature",
+      epicId: "epic-1",
+    };
+
+    const mockTask = {
+      id: "new-task-id",
+      identifier: "ENG-1-1",
+      title: "Task with structuredDesc",
+      description: null,
+      featureId: "feat-1",
+      statusId: null,
+      assigneeId: null,
+      sortOrder: 1,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    };
+
+    it("should persist structuredDesc when provided", async () => {
+      mockApiClient.getFeature.mockResolvedValue({ data: mockFeature });
+      mockApiClient.createTask.mockResolvedValue({ data: mockTask, warnings: [] });
+      mockApiClient.setTaskStructuredDesc.mockResolvedValue({ data: {} });
+
+      const handler = getHandler();
+      const result = await handler!({
+        title: "Task with structuredDesc",
+        feature_id: "feat-1",
+        executionOrder: 1,
+        estimatedComplexity: "moderate",
+        structuredDesc: {
+          summary: "Test summary",
+          aiInstructions: "Step 1: do X",
+          acceptanceCriteria: ["AC 1", "AC 2"],
+        },
+      });
+
+      expect(mockApiClient.setTaskStructuredDesc).toHaveBeenCalledWith(
+        "new-task-id",
+        expect.objectContaining({
+          summary: "Test summary",
+          aiInstructions: "Step 1: do X",
+          acceptanceCriteria: ["AC 1", "AC 2"],
+        })
+      );
+      expect(result.isError).toBeUndefined();
+      const data = JSON.parse(result.content[0]?.text || "{}");
+      expect(data.message).toContain("with structuredDesc");
+    });
+
+    it("should return warnings when structuredDesc is not provided", async () => {
+      mockApiClient.getFeature.mockResolvedValue({ data: mockFeature });
+      mockApiClient.createTask.mockResolvedValue({
+        data: mockTask,
+        warnings: ["Task is missing structuredDesc. Pre-flight checks will fail."],
+      });
+
+      const handler = getHandler();
+      const result = await handler!({
+        title: "Task without structuredDesc",
+        feature_id: "feat-1",
+        executionOrder: 1,
+        estimatedComplexity: "simple",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const data = JSON.parse(result.content[0]?.text || "{}");
+      expect(data.warnings).toBeDefined();
+      expect(data.warnings.length).toBeGreaterThan(0);
+      expect(data.warnings[0]).toContain("structuredDesc");
+    });
+
+    it("should still create task when structuredDesc save fails", async () => {
+      mockApiClient.getFeature.mockResolvedValue({ data: mockFeature });
+      mockApiClient.createTask.mockResolvedValue({ data: mockTask, warnings: [] });
+      mockApiClient.setTaskStructuredDesc.mockRejectedValue(new Error("DB error"));
+
+      const handler = getHandler();
+      const result = await handler!({
+        title: "Task with failing structuredDesc",
+        feature_id: "feat-1",
+        executionOrder: 1,
+        estimatedComplexity: "moderate",
+        structuredDesc: {
+          summary: "Test summary",
+          aiInstructions: "Step 1",
+        },
+      });
+
+      expect(result.isError).toBeUndefined();
+      const data = JSON.parse(result.content[0]?.text || "{}");
+      expect(data.message).toContain("structuredDesc failed to save");
+      expect(data.warnings).toBeDefined();
     });
   });
 

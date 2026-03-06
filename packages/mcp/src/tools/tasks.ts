@@ -7,9 +7,25 @@
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getApiClient, ApiError } from "../api-client.js";
+import { getApiClient, ApiError, type StructuredDescription } from "../api-client.js";
 import { createResponse, createErrorResponse } from "./utils.js";
 import { injectReminder } from "./utils/reminder-injector.js";
+
+// structuredDesc schema for inline task creation/update
+const structuredDescSchema = z.object({
+  summary: z.string().min(1).max(5000).describe("Human-readable summary of the task"),
+  aiInstructions: z.string().max(10000).optional().describe("Instructions for AI agents working on this task"),
+  acceptanceCriteria: z.array(z.string().max(1000)).max(50).optional().describe("Acceptance criteria list"),
+  filesInvolved: z.array(z.string().max(500)).max(100).optional().describe("File paths involved"),
+  functionsToModify: z.array(z.string().max(500)).max(100).optional().describe("Functions to modify (filepath:functionName)"),
+  testingStrategy: z.string().max(5000).optional().describe("Testing approach"),
+  testFiles: z.array(z.string().max(500)).max(100).optional().describe("Test files"),
+  relatedItemIds: z.array(z.string().max(50)).max(50).optional().describe("Related feature/task IDs"),
+  externalLinks: z.array(z.object({ url: z.string().url().max(2048), title: z.string().min(1).max(255) })).max(50).optional().describe("External links"),
+  technicalNotes: z.string().max(10000).optional().describe("Technical notes"),
+  riskLevel: z.enum(["low", "medium", "high"]).optional().describe("Risk level"),
+  estimatedEffort: z.enum(["trivial", "small", "medium", "large", "xl"]).optional().describe("Effort estimate"),
+}).optional().describe("Structured description for pre-flight compliance. Include at least summary, aiInstructions, and acceptanceCriteria to pass pre-flight checks.");
 
 // Register all task tools
 export function registerTaskTools(server: McpServer): void {
@@ -138,7 +154,10 @@ export function registerTaskTools(server: McpServer): void {
         "might be 'COM-123-1'). Returns the created task with all metadata including the " +
         "generated identifier.\n\n" +
         "**REQUIRED FIELDS**: executionOrder and estimatedComplexity must be provided. " +
-        "These fields are mandatory for proper planning and execution tracking.",
+        "These fields are mandatory for proper planning and execution tracking.\n\n" +
+        "**IMPORTANT**: Include structuredDesc with at least summary, aiInstructions, and " +
+        "acceptanceCriteria to pass pre-flight checks. Tasks without structuredDesc will " +
+        "trigger warnings in the response and may fail pre-flight scaffold hints checks.",
       inputSchema: {
         title: z
           .string()
@@ -208,6 +227,7 @@ export function registerTaskTools(server: McpServer): void {
           .describe(
             "Estimated complexity: 'trivial', 'simple', 'moderate', or 'complex'."
           ),
+        structuredDesc: structuredDescSchema,
       },
     },
     async (input) => {
@@ -240,7 +260,7 @@ export function registerTaskTools(server: McpServer): void {
           statusId = await apiClient.resolveStatusId(statusId, epic.teamId);
         }
 
-        const { data: task } = await apiClient.createTask({
+        const createResult = await apiClient.createTask({
           title: input.title,
           featureId: feature.id,
           description: input.description,
@@ -252,12 +272,30 @@ export function registerTaskTools(server: McpServer): void {
           dependencies: input.dependencies,
           estimatedComplexity: input.estimatedComplexity,
         });
+        const task = createResult.data;
+        const apiWarnings: string[] = createResult.warnings ?? [];
+
+        // Set structuredDesc inline if provided
+        if (input.structuredDesc) {
+          try {
+            await apiClient.setTaskStructuredDesc(task.id, input.structuredDesc as StructuredDescription);
+          } catch (sdError) {
+            // Non-blocking: task was created, warn about structuredDesc failure
+            const result = injectReminder('create_task', {
+              ...task,
+              message: `Task '${task.identifier}' created successfully, but structuredDesc failed to save. Use spectree__manage_description to set it manually.`,
+              warnings: [...apiWarnings, `structuredDesc save failed: ${sdError instanceof Error ? sdError.message : String(sdError)}`],
+            });
+            return createResponse(result);
+          }
+        }
 
         const result = injectReminder('create_task', {
           ...task,
-          message: `Task '${task.identifier}' created successfully`
+          message: `Task '${task.identifier}' created successfully${input.structuredDesc ? ' with structuredDesc' : ''}`,
+          ...(apiWarnings.length > 0 ? { warnings: apiWarnings } : {}),
         });
-        
+
         return createResponse(result);
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
@@ -278,6 +316,8 @@ export function registerTaskTools(server: McpServer): void {
         "Update an existing task. Only the fields you provide will be updated; omitted " +
         "fields retain their current values. Returns the updated task with all current " +
         "field values. Use this to change status, reassign, or modify content.\n\n" +
+        "You can also update the task's structuredDesc inline by providing the structuredDesc " +
+        "parameter. This replaces the entire structured description.\n\n" +
         "TIP: After completing significant work on a task, consider using:\n" +
         "- spectree__complete_work to mark it done (auto-calculates duration)\n" +
         "- spectree__log_progress to note partial progress\n" +
@@ -353,6 +393,7 @@ export function registerTaskTools(server: McpServer): void {
           .describe(
             "Estimated complexity: 'trivial', 'simple', 'moderate', or 'complex'."
           ),
+        structuredDesc: structuredDescSchema,
       },
     },
     async (input) => {
@@ -380,6 +421,19 @@ export function registerTaskTools(server: McpServer): void {
           dependencies: input.dependencies,
           estimatedComplexity: input.estimatedComplexity,
         });
+
+        // Set structuredDesc inline if provided
+        if (input.structuredDesc) {
+          try {
+            await apiClient.setTaskStructuredDesc(task.id, input.structuredDesc as StructuredDescription);
+          } catch (sdError) {
+            return createResponse({
+              ...task,
+              message: `Task '${task.identifier}' updated, but structuredDesc failed to save.`,
+              warnings: [`structuredDesc save failed: ${sdError instanceof Error ? sdError.message : String(sdError)}`],
+            });
+          }
+        }
 
         return createResponse(task);
       } catch (error) {

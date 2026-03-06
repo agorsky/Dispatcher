@@ -558,6 +558,43 @@ export async function createTask(input: CreateTaskInput, userId?: string): Promi
 }
 
 /**
+ * Generate warnings for a task based on structuredDesc completeness.
+ * Returns an array of warning strings (empty if no issues).
+ */
+export function generateTaskWarnings(task: Task): string[] {
+  const warnings: string[] = [];
+
+  if (!task.structuredDesc) {
+    warnings.push(
+      "Task is missing structuredDesc. Pre-flight checks will fail. " +
+      "Set structuredDesc with aiInstructions and acceptanceCriteria using spectree__manage_description."
+    );
+    return warnings;
+  }
+
+  try {
+    const desc = typeof task.structuredDesc === 'string'
+      ? JSON.parse(task.structuredDesc)
+      : task.structuredDesc;
+
+    if (!desc.aiInstructions) {
+      warnings.push(
+        "structuredDesc is missing aiInstructions. Pre-flight scaffold hints check will fail."
+      );
+    }
+    if (!desc.acceptanceCriteria || desc.acceptanceCriteria.length === 0) {
+      warnings.push(
+        "structuredDesc is missing acceptanceCriteria. Add acceptance criteria for pre-flight compliance."
+      );
+    }
+  } catch {
+    warnings.push("structuredDesc could not be parsed. Ensure it is valid JSON.");
+  }
+
+  return warnings;
+}
+
+/**
  * Update an existing task
  */
 export async function updateTask(

@@ -1,6 +1,7 @@
 import { prisma } from "../lib/db.js";
 import { validateEpicDescription } from "./descriptionValidator.js";
 import { resolveDependencies } from "./dependencyService.js";
+import { parseMarkdownToStructuredDesc } from "./markdownDescParser.js";
 import type { PreflightCheckResult, PreflightResult } from "../schemas/preflight.js";
 
 // ---------------------------------------------------------------------------
@@ -167,6 +168,39 @@ export async function checkDependencies(epicId: string): Promise<PreflightCheckR
   };
 }
 
+/**
+ * Auto-backfill structuredDesc from markdown descriptions for tasks that have
+ * null structuredDesc. Persists the backfilled result to the database so
+ * subsequent checks don't need to re-parse.
+ */
+async function autoBackfillStructuredDesc(
+  features: { id: string; tasks: { id: string; identifier: string; description: string | null; structuredDesc: string | null }[] }[]
+): Promise<number> {
+  let backfillCount = 0;
+
+  for (const feature of features) {
+    for (const task of feature.tasks) {
+      if (task.structuredDesc || !task.description) continue;
+
+      const parsed = parseMarkdownToStructuredDesc(task.description);
+      if (!parsed) continue;
+
+      try {
+        await prisma.task.update({
+          where: { id: task.id },
+          data: { structuredDesc: JSON.stringify(parsed) },
+        });
+        task.structuredDesc = JSON.stringify(parsed);
+        backfillCount++;
+      } catch (error) {
+        console.error(`Failed to backfill structuredDesc for task ${task.identifier}:`, error);
+      }
+    }
+  }
+
+  return backfillCount;
+}
+
 export async function runPreflight(epicId: string): Promise<PreflightResult> {
   const epic = await prisma.epic.findUnique({
     where: { id: epicId },
@@ -174,7 +208,7 @@ export async function runPreflight(epicId: string): Promise<PreflightResult> {
       features: {
         include: {
           tasks: {
-            select: { identifier: true, structuredDesc: true },
+            select: { id: true, identifier: true, description: true, structuredDesc: true },
           },
         },
       },
@@ -184,6 +218,9 @@ export async function runPreflight(epicId: string): Promise<PreflightResult> {
   if (!epic) {
     throw new Error(`Epic with id '${epicId}' not found`);
   }
+
+  // Auto-backfill structuredDesc from markdown descriptions before running checks
+  const backfillCount = await autoBackfillStructuredDesc(epic.features);
 
   const depCheck = await checkDependencies(epicId);
 
@@ -205,6 +242,7 @@ export async function runPreflight(epicId: string): Promise<PreflightResult> {
     score,
     checks,
     checkedAt: new Date().toISOString(),
+    ...(backfillCount > 0 ? { backfillCount } : {}),
   };
 }
 
