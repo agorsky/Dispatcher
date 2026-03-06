@@ -154,7 +154,10 @@ export function registerTaskTools(server: McpServer): void {
         "might be 'COM-123-1'). Returns the created task with all metadata including the " +
         "generated identifier.\n\n" +
         "**REQUIRED FIELDS**: executionOrder and estimatedComplexity must be provided. " +
-        "These fields are mandatory for proper planning and execution tracking.",
+        "These fields are mandatory for proper planning and execution tracking.\n\n" +
+        "**IMPORTANT**: Include structuredDesc with at least summary, aiInstructions, and " +
+        "acceptanceCriteria to pass pre-flight checks. Tasks without structuredDesc will " +
+        "trigger warnings in the response and may fail pre-flight scaffold hints checks.",
       inputSchema: {
         title: z
           .string()
@@ -313,6 +316,8 @@ export function registerTaskTools(server: McpServer): void {
         "Update an existing task. Only the fields you provide will be updated; omitted " +
         "fields retain their current values. Returns the updated task with all current " +
         "field values. Use this to change status, reassign, or modify content.\n\n" +
+        "You can also update the task's structuredDesc inline by providing the structuredDesc " +
+        "parameter. This replaces the entire structured description.\n\n" +
         "TIP: After completing significant work on a task, consider using:\n" +
         "- spectree__complete_work to mark it done (auto-calculates duration)\n" +
         "- spectree__log_progress to note partial progress\n" +

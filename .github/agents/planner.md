@@ -322,30 +322,49 @@ The epic request provides the **requirements**. Your job in this stage is to com
      features: [
        {
          title: "Feature 1",
-         description: "Feature description with acceptance criteria",
          executionOrder: 1,
          canParallelize: false,
          estimatedComplexity: "moderate",
+         structuredDesc: {
+           summary: "Feature 1 summary",
+           aiInstructions: "1. Read X\n2. Modify Y",
+           acceptanceCriteria: ["Criterion 1", "Criterion 2", "Criterion 3"],
+           filesInvolved: ["packages/api/src/routes/example.ts"],
+           riskLevel: "low",
+           estimatedEffort: "medium"
+         },
          tasks: [
            {
              title: "Task 1.1",
-             description: "Task description"
+             structuredDesc: {
+               summary: "Task 1.1 summary",
+               aiInstructions: "1. Open file X\n2. Add function Y\n3. Write tests",
+               acceptanceCriteria: ["AC 1", "AC 2"],
+               filesInvolved: ["packages/api/src/services/example.ts"]
+             }
            }
          ]
        },
        {
          title: "Feature 2",
-         description: "...",
          executionOrder: 2,
          canParallelize: true,
          parallelGroup: "phase-2",
          estimatedComplexity: "simple",
          dependencies: [],
+         structuredDesc: {
+           summary: "Feature 2 summary",
+           aiInstructions: "...",
+           acceptanceCriteria: ["AC 1", "AC 2", "AC 3"],
+           filesInvolved: ["packages/web/src/pages/settings.tsx"]
+         },
          tasks: [...]
        }
      ]
    })
    ```
+
+   > **CRITICAL**: Include `structuredDesc` with at least `summary`, `aiInstructions`, and `acceptanceCriteria` on EVERY feature and task in the `create_epic_complete` call. This enables pre-flight checks to pass without requiring a separate Stage 3 `manage_description` round-trip for every item. Tasks without `structuredDesc` will trigger API warnings and may fail pre-flight.
 
 4. After creation, set execution metadata for features that need it:
    ```
@@ -392,6 +411,25 @@ Before writing structured descriptions, gather codebase intelligence:
    })
    ```
    Use the returned `score`, `category`, and `estimatedMinutes` to set `estimatedComplexity` and `estimatedEffort` fields in structured descriptions. If the score suggests a task is too large (score >= 8), consider splitting it.
+
+### structuredDesc Schema Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `summary` | string (1-5000) | **Yes** | Human-readable summary of the feature or task |
+| `aiInstructions` | string (max 10000) | **Yes*** | Step-by-step instructions for AI agents. *Required for pre-flight |
+| `acceptanceCriteria` | string[] (max 50) | **Yes*** | Verifiable completion criteria. *Min 3 for features, 2 for tasks |
+| `filesInvolved` | string[] (max 100) | Recommended | File paths involved (full relative paths from repo root) |
+| `functionsToModify` | string[] (max 100) | Optional | Functions to modify (format: `filepath:functionName`) |
+| `testingStrategy` | string (max 5000) | Optional | Testing approach description |
+| `testFiles` | string[] (max 100) | Optional | Test file paths |
+| `relatedItemIds` | string[] (max 50) | Optional | Related feature/task identifiers |
+| `externalLinks` | {url, title}[] (max 50) | Optional | External documentation links |
+| `technicalNotes` | string (max 10000) | Optional | Technical context, caveats, decisions |
+| `riskLevel` | "low" \| "medium" \| "high" | Optional | Risk assessment |
+| `estimatedEffort` | "trivial" \| "small" \| "medium" \| "large" \| "xl" | Optional | Effort estimate |
+
+> **CRITICAL**: Every task MUST have `structuredDesc` populated with at least `summary`, `aiInstructions`, and `acceptanceCriteria`. Tasks without these fields will fail pre-flight scaffold hints checks and produce 20-30 errors per epic. The preferred method is to include `structuredDesc` inline in the `create_epic_complete` call (Stage 2). If that was not done, set them here using `dispatcher__manage_description`.
 
 ### Setting Structured Descriptions
 
@@ -606,6 +644,7 @@ If any threshold fails, fix each issue (call `dispatcher__update_epic` for descr
 10. **MUST** include specific file paths in `filesInvolved` for every task
 11. **MUST** write AI instructions specific enough for a fresh session to implement
 12. **MUST** warn if `filesInvolved` contains paths that don't exist and aren't explicitly marked as new files
-13. **NEVER** create tasks scoped larger than ~125k tokens (complex)
-14. **NEVER** put features that modify the same files in the same parallel group
-15. **NEVER** copy epic request fields verbatim as the epic description — the request is input, the description is a synthesized, enriched output
+13. **MUST** populate `structuredDesc` with at least `summary`, `aiInstructions`, and `acceptanceCriteria` on EVERY task and feature — either inline in `create_epic_complete` (preferred) or via `dispatcher__manage_description` in Stage 3. Tasks without `structuredDesc` will fail pre-flight and block dispatch.
+14. **NEVER** create tasks scoped larger than ~125k tokens (complex)
+15. **NEVER** put features that modify the same files in the same parallel group
+16. **NEVER** copy epic request fields verbatim as the epic description — the request is input, the description is a synthesized, enriched output
