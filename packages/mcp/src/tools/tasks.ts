@@ -257,7 +257,7 @@ export function registerTaskTools(server: McpServer): void {
           statusId = await apiClient.resolveStatusId(statusId, epic.teamId);
         }
 
-        const { data: task } = await apiClient.createTask({
+        const createResult = await apiClient.createTask({
           title: input.title,
           featureId: feature.id,
           description: input.description,
@@ -269,6 +269,8 @@ export function registerTaskTools(server: McpServer): void {
           dependencies: input.dependencies,
           estimatedComplexity: input.estimatedComplexity,
         });
+        const task = createResult.data;
+        const apiWarnings: string[] = createResult.warnings ?? [];
 
         // Set structuredDesc inline if provided
         if (input.structuredDesc) {
@@ -279,7 +281,7 @@ export function registerTaskTools(server: McpServer): void {
             const result = injectReminder('create_task', {
               ...task,
               message: `Task '${task.identifier}' created successfully, but structuredDesc failed to save. Use spectree__manage_description to set it manually.`,
-              warnings: [`structuredDesc save failed: ${sdError instanceof Error ? sdError.message : String(sdError)}`],
+              warnings: [...apiWarnings, `structuredDesc save failed: ${sdError instanceof Error ? sdError.message : String(sdError)}`],
             });
             return createResponse(result);
           }
@@ -288,6 +290,7 @@ export function registerTaskTools(server: McpServer): void {
         const result = injectReminder('create_task', {
           ...task,
           message: `Task '${task.identifier}' created successfully${input.structuredDesc ? ' with structuredDesc' : ''}`,
+          ...(apiWarnings.length > 0 ? { warnings: apiWarnings } : {}),
         });
 
         return createResponse(result);

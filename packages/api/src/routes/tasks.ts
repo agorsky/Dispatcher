@@ -5,6 +5,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  generateTaskWarnings,
 } from "../services/taskService.js";
 import {
   getTaskAiContext,
@@ -305,7 +306,8 @@ export default function tasksRoutes(
       if (sortOrder !== undefined) input.sortOrder = sortOrder;
 
       const task = await createTask(input);
-      return reply.status(201).send({ data: task });
+      const warnings = generateTaskWarnings(task);
+      return reply.status(201).send({ data: task, ...(warnings.length > 0 ? { warnings } : {}) });
     }
   );
 

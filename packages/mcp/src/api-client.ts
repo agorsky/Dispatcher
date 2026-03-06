@@ -1831,8 +1831,8 @@ export class ApiClient {
     return this.request<{ data: Task }>("GET", `/api/v1/tasks/${encodeURIComponent(idOrIdentifier)}`);
   }
 
-  async createTask(data: CreateTaskData): Promise<{ data: Task }> {
-    return this.request<{ data: Task }>("POST", "/api/v1/tasks", data);
+  async createTask(data: CreateTaskData): Promise<{ data: Task; warnings?: string[] }> {
+    return this.request<{ data: Task; warnings?: string[] }>("POST", "/api/v1/tasks", data);
   }
 
   async updateTask(idOrIdentifier: string, data: UpdateTaskData): Promise<{ data: Task }> {
