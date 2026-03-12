@@ -3,7 +3,7 @@ name: Dispatcher Planner
 description: "Creates structured Dispatcher epics from natural language descriptions.
   Runs a 5-stage pipeline: Analyze, Decompose, Detail, Evaluate, Verify.
   Use when the user wants to plan, design, or spec out a feature or body of work."
-tools: ['read', 'search', 'web', 'dispatcher/*', 'spectree__scan_project_structure', 'spectree__analyze_file_impact', 'spectree__detect_patterns', 'spectree__estimate_effort']
+tools: ['read', 'search', 'web', 'dispatcher/*', 'spectree__scan_project_structure', 'spectree__analyze_file_impact', 'spectree__detect_patterns', 'spectree__estimate_effort', 'spectree__score_plan', 'spectree__validate_task_completeness', 'spectree__get_epic_requirements']
 agents: []
 user-invokable: true
 ---
@@ -495,114 +495,118 @@ dispatcher__manage_description({
 
 ## Stage 4: EVALUATE
 
-**Goal:** Score the plan against quality heuristics, compute a quality score, and fix issues before proceeding.
+**Goal:** Use the `spectree__score_plan` MCP tool to score the plan, verify requirement coverage, run a self-revision loop if needed, and present results for approval.
 
 This gate is **always interactive** — even with `--gates=auto`, you MUST present results and wait for approval.
 
-### Quality Scoring Rubric
+### Step 4.0: Requirement Coverage Check (if `--from-request` was used)
 
-Compute four sub-scores (0-100 each), then compute a weighted **Overall Score**.
-
-#### Epic Description Score (0-100)
-
-🔴 **Hard floor: An epic whose Epic Description Score is below 95 is NEVER ready, regardless of the overall score.** Opus-quality planning demands near-perfect epic descriptions — anything under 95 is unacceptable.
-
-Evaluate the epic description as a standalone reference document. Any engineer (human or AI) should be able to understand the full scope, approach, and constraints without reading anything else.
-
-| Check | Points | Condition |
-|-------|--------|-----------|
-| **Overview/Source** | 10 | Has a clear overview AND source reference (if from request) |
-| **Problem Statement** | 10 | Clearly articulates the problem with current state + impact — not just a feature request |
-| **Goals** | 10 | Has a goals table or list with specific, measurable objectives |
-| **Proposed Approach** | 15 | Describes the technical approach with architecture, specific patterns, endpoints, components, or data flows — not just bullet-point summaries |
-| **Scope Definition** | 10 | Defines what's in scope and/or explicitly out of scope. Includes boundary conditions or edge cases |
-| **Execution Plan** | 10 | Has an execution plan table mapping phases to features with identifiers and complexity |
-| **Technical Considerations** | 15 | Covers key files, risk areas, existing infrastructure, database constraints, or scalability concerns with specific file paths |
-| **Success Criteria** | 10 | Has specific, verifiable success criteria (not vague aspirations) |
-| **Supporting Sections** | 10 | Includes at least 2 of: Target Audience, Alternatives Considered, Dependencies, Access Control, UI/UX Requirements |
-
-**Scoring rules:**
-- Award **full points** if the section is present AND substantive (multiple sentences, specific details)
-- Award **half points** if the section is present but thin (single sentence or generic)
-- Award **zero** if the section is missing entirely
-
-**Word count check:** Flag any description under 300 words as a critical issue regardless of section scores.
-
-**If the Epic Description Score is below 95:** You MUST update the epic description using `dispatcher__update_epic` to add the missing/thin sections, then re-score. Use the codebase analysis from Stage 1 to enrich technical sections.
-
-#### Structure Score (0-100)
-
-Evaluate epic-level structural integrity:
-
-| Check | Points | Condition |
-|-------|--------|-----------|
-| Feature count | 25 | 3-10 features in the epic |
-| Task count per feature | 25 | Every feature has 2-5 tasks |
-| Execution order set | 25 | Every feature has an `executionOrder` value |
-| Dependencies valid | 25 | No circular dependencies; all referenced IDs exist |
-
-Deduct proportionally. E.g., if 1 of 5 features has no execution order, deduct 5 points (25 * 1/5).
-
-#### Detail Score (0-100)
-
-Evaluate completeness of structured descriptions:
-
-| Check | Points | Condition |
-|-------|--------|-----------|
-| Structured descriptions set | 25 | Every feature AND task has a structured description |
-| AI instructions present | 25 | Non-empty `aiInstructions` for every feature and task |
-| Acceptance criteria present | 25 | >= 3 per feature, >= 2 per task |
-| Files involved listed | 25 | At least 1 file per task with full relative paths |
-
-Deduct proportionally per missing item.
-
-#### Scoping Score (0-100)
-
-Evaluate task sizing and parallel safety:
-
-| Check | Points | Condition |
-|-------|--------|-----------|
-| Task scope appropriate | 34 | No task exceeds ~125k tokens (complex); descriptions >= 50 chars |
-| No overlapping files in parallel | 33 | Features in the same `parallelGroup` don't modify the same files |
-| Self-contained tasks | 33 | Each task's description + AI instructions are sufficient for a fresh session |
-
-#### Overall Score
+If the planning session used `--from-request`, begin Stage 4 by verifying that the implementation plan covers all requirements from the original Epic Request.
 
 ```
-Overall = (Epic Description * 0.30) + (Structure * 0.25) + (Detail * 0.25) + (Scoping * 0.20)
+spectree__get_epic_requirements({
+  epicRequestId: "<epicRequestId from Stage 1>",
+  epicId: "<epicId>"
+})
 ```
 
-Epic Description is weighted highest (30%) because it is the most commonly under-specified section and drives all downstream quality.
+Review the returned `traceabilityReport`:
+- Verify every requirement topic has a corresponding feature
+- Check that success metrics from the Epic Request appear in task acceptance criteria
+- If gaps are found, add missing features/tasks before proceeding to scoring
 
-**Minimum thresholds:**
-- **Overall Score must be >= 95** to proceed to Stage 5
-- **Epic Description Score must be >= 95** regardless of overall score (hard floor)
+### Step 4.1: Run MCP Scoring Tool
 
-If either threshold fails, you MUST fix the failing checks, then re-score. Do NOT proceed to Stage 5 until both thresholds pass.
+Call the plan scoring tool — do NOT compute scores manually via LLM reasoning:
+
+```
+spectree__score_plan({ epicId: "<epicId>" })
+```
+
+The tool returns:
+- `overallScore` — weighted score (Epic Desc 30%, Features 25%, Tasks 25%, Execution Plan 20%)
+- `epicDescriptionScore` — per-check breakdown
+- `featureScores` — per-feature scores with itemized checks
+- `taskScores` — per-task scores with itemized checks
+- `executionPlanScore` — execution plan validity checks
+- `feedback` — list of all failing checks with specific details
+- `passed` — boolean: `true` if overallScore >= 85
+
+### Step 4.2: Self-Revision Loop
+
+🔴 **Maximum 2 revision loops.** Track the loop count internally.
+
+**Loop condition:** If `passed === false` (overallScore < 85):
+
+1. Review the `feedback` array from `spectree__score_plan`
+2. Fix each failing check:
+   - Epic description issues → `dispatcher__update_epic` to add missing sections
+   - Feature issues → `dispatcher__manage_description` (action='set') for structured desc
+   - Task issues → `dispatcher__manage_description` (action='set') for structured desc
+   - Execution plan issues → `dispatcher__set_execution_metadata` for ordering/dependencies
+3. Re-call `spectree__score_plan({ epicId: "<epicId>" })`
+4. Increment loop count
+
+**Repeat until** `passed === true` OR loop count reaches 2.
+
+**Escalation (2 loops exhausted, still failing):**
+
+If after 2 revision attempts the plan still has `passed === false`, STOP and surface to the user:
+
+```
+⚠️ Plan Quality Gate Failed After 2 Revision Attempts
+
+Current Score: XX/100 (threshold: 85)
+
+Remaining Issues:
+[list failing checks from feedback array]
+
+The plan cannot proceed to Stage 5 without manual intervention.
+Please review the issues above and either:
+1. Provide additional context to improve the plan
+2. Manually fix the listed issues in Dispatcher
+3. Approve override with: "proceed anyway" (not recommended for scores < 80)
+```
+
+Do NOT proceed to Stage 5 unless the user explicitly overrides.
+
+### Step 4.3: Validate Task Completeness
+
+After the plan passes (or on user override), run task completeness validation:
+
+```
+spectree__validate_task_completeness({ epicId: "<epicId>" })
+```
+
+Review the `summary` and fix any `failing` tasks before proceeding:
+- `summary length < 50 chars` → expand the task summary
+- `acceptanceCriteria count < 2` → add at least 2 criteria
+- `filesInvolved empty` → add at least 1 file path
+- `aiInstructions empty` → add step-by-step AI guidance
+- `estimatedEffort not set` → set in structuredDesc
 
 ### Evaluation Output
 
 Present the score like this:
 
 ```
-Quality Evaluation Results
-──────────────────────────
-Epic Description: 92/100  (1 issue: Scope Definition is thin — only 1 sentence)
-Structure Score:  95/100  (1 issue: Feature 3 missing execution order)
-Detail Score:     85/100  (3 issues: Tasks 2.1, 4.3 missing files involved; Task 5.2 has 1 acceptance criterion)
-Scoping Score:    90/100  (1 issue: Features 2 and 3 share packages/api/src/routes/users.ts but are in same parallel group)
-──────────────────────────
-Overall Score:    90/100  ✓ PASS  (Epic Description ✓ above hard floor)
+Quality Evaluation Results (via spectree__score_plan)
+──────────────────────────────────────────────────────
+Epic Description: XX/100
+Feature Average:  XX/100  (X features scored)
+Task Average:     XX/100  (X tasks scored)
+Execution Plan:   XX/100
+──────────────────────────────────────────────────────
+Overall Score:    XX/100  [✓ PASS / ✗ FAIL — threshold: 85]
 
-Issues to review:
-1. [Epic Desc] Scope Definition: Only 1 sentence — add explicit in/out scope boundaries
-2. [Detail] Task ENG-42-1: Missing filesInvolved — needs at least 1 file path
-3. [Detail] Task ENG-44-3: Missing filesInvolved — needs at least 1 file path
-4. [Detail] Task ENG-46-2: Only 1 acceptance criterion — needs at least 2
-5. [Scoping] Features ENG-43, ENG-44: Both modify packages/api/src/routes/users.ts — cannot be in same parallel group
+Failing checks:
+[list items from feedback array]
+
+Task Completeness: X/X tasks passing
+[list failing tasks if any]
 ```
 
-If any threshold fails, fix each issue (call `dispatcher__update_epic` for description issues, `dispatcher__manage_description` (action='set') or `dispatcher__set_execution_metadata` for feature/task issues), then re-run the evaluation.
+**Hard floor note:** The plan-reviewer agent (Stage 6) requires >= 95 for formal execution approval. The self-scoring loop threshold is 85 — a plan passing at 85+ is ready for Stage 5 but may still need improvement before production execution.
 
 **Gate:** Always interactive. Present the quality score and all issues found. Wait for user approval.
 

@@ -40,6 +40,8 @@ import { registerLawTools } from "./laws.js";
 import { registerCaseTools } from "./cases.js";
 import { registerAgentScoreTools } from "./agent-scores.js";
 import { registerMemoryPatternTools } from "./memory-patterns.js";
+import { registerPlanScoringTools } from "./plan-scoring.js";
+import { registerPlanRequirementTools } from "./plan-requirements.js";
 
 // Import changelog tools
 import { registerChangelogTools } from "./changelog.js";
@@ -84,6 +86,8 @@ const toolRegistrars: ToolRegistrar[] = [
   registerEffortTools,       // Effort estimation engine
   registerWorkflowTools,     // Workflow guidance
   registerMemoryPatternTools, // Memory pattern registry (ENG-65)
+  registerPlanScoringTools,  // Plan scoring & task completeness (ENG-E219)
+  registerPlanRequirementTools, // Epic requirements traceability (ENG-E219)
   registerSkillPackTools,    // Skill pack management
 ];
 
